@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ar" dir="rtl">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>تأكيد عنوان البريد الإلكتروني</title>
+</head>
+<body style="margin:0;padding:0;direction:rtl;font-family:'Noto Kufi Arabic', Tahoma, 'Segoe UI', Arial, sans-serif;background:#f8fafc;">
+    <!-- Main Wrapper -->
+    <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-spacing:0;background:#f8fafc;">
+        <tr>
+            <td align="center" style="padding:60px 12px;">
+                <!--[if mso]>
+                <table role="presentation" align="center" style="width:560px;"><tr><td>
+                <![endif]-->
+                <!-- Card -->
+                <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:560px;border-radius:16px;background:#ffffff;box-shadow:0 8px 32px rgba(0,0,0,0.03);border:1px solid #f1f5f9;overflow:hidden;">
+                    <!-- Gradient Header -->
+                    <tr>
+                        <td align="center" style="background:#101828;background:linear-gradient(135deg, #101828 0%, #1e2939 100%);padding:48px 0 56px;">
+                            <img src="{{.LogoURL}}" alt="عرب كود" width="32" height="auto" style="display:inline-block;width:32px;height:auto;border:0;line-height:0;color:#ffffff;vertical-align:middle;margin:0 .5rem;">
+                          <span style="color:white;font-size:20px;font-weight:bold;vertical-align:middle;">عرب كود</span>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding:40px 32px;">
+                            <!-- Title -->
+                            <h1 style="margin:0 0 24px 0;font-size:28px;font-weight:700;color:#1e293b;text-align:center;line-height:1.3;">
+                                مرحبًا {{.Username}}
+                            </h1>
+
+                            <!-- Message -->
+                            <p style="margin:0 0 28px 0;color:#64748b;font-size:17px;line-height:1.7;text-align:center;">
+                                نشكرك على انضمامك إلى عرب كود! يرجى استخدام رمز التحقق التالي<br>لتفعيل حسابك:
+                            </p>
+
+                            <!-- OTP Code -->
+                            <div style="margin:0 auto 32px;text-align:center;">
+                                <div style="display:inline-block;background:#ffffff;border-radius:12px;padding:4px;box-shadow:0 4px 24px rgba(0,0,0,0.05);">
+                                    <div style="background:#ffffff;border-radius:8px;padding:20px 40px;position:relative;border:1px solid #e2e8f0;">
+                                        <div style="font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:700;letter-spacing:8px;color:#209e34;direction:ltr;">{{.Token}}</div>
+                                    </div>
+                                </div>
+                                <!-- Expiration Notice -->
+                                <div style="margin:16px 0 0;font-size:14px;color:#94a3b8;text-align:center;">
+                                    رمز التحقق صالح لمدة 48 ساعة
+                                </div>
+                            </div>
+
+                            <!-- Footer -->
+                            <p style="margin:0;color:#94a3b8;font-size:14px;text-align:center;line-height:1.6;">
+                                إذا لم تقم بإنشاء هذا الحساب، يمكنك تجاهل هذه الرسالة.<br>
+                                <span style="display:inline-block;margin-top:8px;font-weight:500;color:#64748b;">فريق عرب كود</span>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                <!--[if mso]>
+                </td></tr></table>
+                <![endif]-->
+
+                <!-- Copyright -->
+                <table role="presentation" width="100%" style="max-width:560px;margin-top:24px;">
+                    <tr>
+                        <td align="center" style="padding:16px;font-size:12px;color:#94a3b8;">
+                            © 2025 عرب كود. جميع الحقوق محفوظة
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+    <style type="text/css">
+        @media only screen and (max-width: 600px) {
+            td { padding: 40px 24px !important; }
+            h1 { font-size: 24px !important; }
+            p { font-size: 16px !important; }
+            .otp-code { font-size: 28px !important; }
+        }
+        
+        /* Noto Kufi Arabic fallback stack */
+        @font-face {
+            font-family: 'Noto Kufi Arabic';
+            font-style: normal;
+            font-weight: 400;
+            src: local('Noto Kufi Arabic'), local('NotoKufiArabic'),
+                 url(https://fonts.gstatic.com/s/notokufiarabic/v5/PlIaFke5O6RzLfvNNVSivR09ALwDaAxUpM4.ttf) format('truetype');
+        }
+    </style>
+</body>
+</html>

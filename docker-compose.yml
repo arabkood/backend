@@ -1,0 +1,51 @@
+name: "arabkood/api"
+
+services:
+  api:
+    user: "1000:1000"
+    build: .
+    ports:
+      - 2007:2007
+    volumes:
+      - .:/app
+      - /home/achraf/.aws:/.aws:ro
+      - /kood/submissions/:/mnt/submissions/:rw
+    networks:
+      - arabkoodapi-postgres-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:latest
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: admin
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - arabkoodapi-postgres-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    ports:
+      - 3004:8000
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@arabkood.com"
+      PGADMIN_DEFAULT_PASSWORD: "admin"
+      PGADMIN_LISTEN_ADDRESS: "0.0.0.0"
+      PGADMIN_LISTEN_PORT: "8000"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - arabkoodapi-postgres-network
+
+networks:
+  arabkoodapi-postgres-network:
+    name: arabkoodapi-postgres-network
+
+volumes:
+  postgres_data:
+  pgadmin_data:

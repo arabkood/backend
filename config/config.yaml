@@ -1,0 +1,79 @@
+# Application Configuration
+app:
+  name: "Arabkood"
+  environment: "development"
+  baseURL: "http://192.168.1.69:8080"
+  debug: true
+
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: 2007
+  corsOrigins:
+    - "http://localhost:5173"
+    - "http://localhost:4173"
+    - "http://localhost:3000"
+    - "http://192.168.1.69:8080"
+    - "http://dev.arabkood.com"
+    - "http://dev.arabkood.com:8080"
+  readTimeout: "15s"
+  writeTimeout: "15s"
+  gracefulTimeout: "15s"
+  internalAllowList:
+    - "10.0.0.0/8"
+    - "192.168.1.69"
+    - "172.16.0.0/12"
+    - "172.20.0.0/12"
+  internalAuthSecret: "HelloWorld"
+
+# Database Configuration
+database:
+  host: "192.168.1.69"
+  port: 5432
+  user: "postgres"
+  password: "admin"
+  name: "arabkood_0"
+  sslMode: "disable"
+  # Connection pool settings
+  maxConnLifetime: "1h"
+  maxConnLifetimeJitter: "5m"
+  maxConnIdleTime: "30m"
+  maxConns: 25
+  minConns: 5
+  healthCheckPeriod: "5m"
+
+# Authentication Configuration
+auth:
+  cookiesDomains:
+    - "dev.arabkood.com"
+    - "localhost"
+    - "arabkood.com"
+  sessionCookieName: "arabkood_session_token"
+  sessionTokenExpiryHours: 720 # 30 days
+  emailVerificationExpiryMinutes: 1440 # 24 hours
+  emailVerificationCodeLength: 6
+  emailVerificationCodeChars: "0123456789"
+  passwordResetExpiryMinutes: 60 # 1 hour
+  passwordResetCodeLength: 6
+  passwordResetCodeChars: "0123456789"
+
+# Email Configuration (commented out as per original code)
+email:
+  provider: "smtp"
+  fromEmail: "noreply@arabkood.com"
+  fromName: "Arabkood"
+  smtpHost: "email-smtp.eu-north-1.amazonaws.com"
+  smtpPort: "465"
+  smtpUser: "AKIAV7C53RKI7IPCOSJI"
+  smtpPass: "BLz94aN/CUfmJu+pUdqI4Z/ysNXIg3wirU7U7HWz4zlP"
+
+aws:
+  region: "me-central-1"
+  submissionQueueURL: "https://localhost.localstack.cloud:4566/000000000000/Main_Runner_Queue"
+  credentialsPath: "/.aws/credentials"
+  profile: "dev"
+  endpoint: "http://172.17.0.1:4566"
+  exercisesBucketName: "kood-modules-bucket"
+
+other:
+  submissionsDirectory: "/mnt/submissions/"
