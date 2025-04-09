@@ -27,8 +27,12 @@ func SetupRoutes(router *gin.Engine, srv *server.Server) error {
 		srv.Logger.Info().Msg("Registering Gin Custom Validator...")
 		validators.RegisterValidators(validatorEngine)
 	} else {
-		return errors.New("Api shouldn't be allowed to launch without proper validators...")
+		return errors.New("api shouldn't be allowed to launch without proper validators")
 	}
+
+	api.GET("/health", func(ctx *gin.Context) {
+		ctx.Status(200)
+	})
 
 	// Auth routes
 	auth.RegisterRoutes(api, srv)

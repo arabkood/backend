@@ -151,6 +151,7 @@ func NewConfig(configName string) (*Config, error) {
 	v.AddConfigPath(".")               // config file path
 	v.AddConfigPath("config")          // config file path
 	v.AddConfigPath("/etc/arabkood")   // fallback path
+	v.AddConfigPath("/opt/go-app")     // fallback path
 	v.AddConfigPath("$HOME/.arabkood") // fallback path
 
 	// Read environment variables
