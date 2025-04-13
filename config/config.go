@@ -49,7 +49,7 @@ type ServerConfig struct {
 
 type DatabaseConfig struct {
 	Host     string `validate:"required"`
-	User     string `validate:"required"`
+	UserName string `validate:"required"`
 	Password string `validate:"required"`
 	Name     string `validate:"required"`
 	SSLMode  string `validate:"required,oneof=disable require verify-full prefer verify-ca"`
@@ -102,7 +102,7 @@ func (d *DatabaseConfig) GetPostgresURL() string {
 	}
 
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/postgres",
-		url.QueryEscape(d.User),
+		url.QueryEscape(d.UserName),
 		url.QueryEscape(d.Password),
 		url.QueryEscape(d.Host),
 		d.Port)
@@ -123,7 +123,7 @@ func (d *DatabaseConfig) GetDatabaseURL() string {
 
 	// Build the connection string with only postgres params
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
-		url.QueryEscape(d.User),
+		url.QueryEscape(d.UserName),
 		url.QueryEscape(d.Password),
 		url.QueryEscape(d.Host),
 		d.Port,

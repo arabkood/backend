@@ -1,8 +1,8 @@
-# Application Configuration
+# Dev Config
 app:
   name: "Arabkood"
   environment: "development"
-  baseURL: "http://192.168.1.69:8080"
+  baseURL: "http://api.alpha.arabkood.com"
   debug: true
 
 # Server Configuration
@@ -16,6 +16,8 @@ server:
     - "http://192.168.1.69:8080"
     - "http://dev.arabkood.com"
     - "http://dev.arabkood.com:8080"
+    - "http://dev.alpha.arabkood.com"
+    - "http://alpha.arabkood.com"
   readTimeout: "15s"
   writeTimeout: "15s"
   gracefulTimeout: "15s"
