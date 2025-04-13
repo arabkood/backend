@@ -18,6 +18,11 @@ import (
 // SetupRoutes initializes API routes
 func SetupRoutes(router *gin.Engine, srv *server.Server) error {
 	router.Use(middlewares.CORS(srv.Config))
+
+	router.GET("/health", func(ctx *gin.Context) {
+		ctx.JSON(200, gin.H{"status": "UP"})
+	})
+
 	api := router.Group("/api/v1")
 
 	api.Use(gin.Recovery())
@@ -29,10 +34,6 @@ func SetupRoutes(router *gin.Engine, srv *server.Server) error {
 	} else {
 		return errors.New("api shouldn't be allowed to launch without proper validators")
 	}
-
-	api.GET("/health", func(ctx *gin.Context) {
-		ctx.Status(200)
-	})
 
 	// Auth routes
 	auth.RegisterRoutes(api, srv)
