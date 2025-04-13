@@ -4,7 +4,7 @@ files:
   - source: main
     destination: /opt/go-app
   - source: config/config.dev.yaml
-    destination: /opt/go-app/config.yaml
+    destination: /opt/go-app
 hooks:
   BeforeInstall:
     - location: scripts/before_install.sh # Stop old service, clean directory
