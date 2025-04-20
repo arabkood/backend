@@ -17,4 +17,3 @@ artifacts:
     - appspec.yml
     - scripts/**/*
     - config/config.dev.yaml
-  # discard-paths: yes # Optional: flattens the structure in the artifact zip
