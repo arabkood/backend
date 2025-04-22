@@ -11,7 +11,7 @@ if ! systemctl is-active --quiet go-app; then
 fi
 
 # Check the health endpoint (adjust port/path if needed)
-curl -f http://localhost:8080/health || exit 1
+curl -f http://localhost/health || exit 1
 
 echo "Service validation successful!"
 exit 0
