@@ -2,7 +2,7 @@ FROM golang:1.24.0-alpine
 
 RUN apk add --no-cache entr
 
-# Create a user with UID 1000 and GID 1000 (match your host user)
+#Create a user with UID 1000 and GID 1000 (match your host user)
 RUN addgroup -g 1000 appuser && \
     adduser -D -u 1000 -G appuser appuser
 
