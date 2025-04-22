@@ -8,7 +8,7 @@ app:
 # Server Configuration
 server:
   host: "0.0.0.0"
-  port: 8080
+  port: 80
   corsOrigins:
     - "http://localhost:5173"
     - "http://localhost:4173"
@@ -16,6 +16,8 @@ server:
     - "http://192.168.1.69:8080"
     - "http://dev.arabkood.com"
     - "http://dev.arabkood.com:8080"
+    - "http://dev.alpha.akood.com"
+    - "http://alpha.akood.com"
   readTimeout: "15s"
   writeTimeout: "15s"
   gracefulTimeout: "15s"
@@ -46,6 +48,7 @@ database:
 auth:
   cookiesDomains:
     - "dev.arabkood.com"
+    - "dev.akood.com"
     - "localhost"
     - "arabkood.com"
   sessionCookieName: "arabkood_session_token"
