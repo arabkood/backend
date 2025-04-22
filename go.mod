@@ -3,8 +3,8 @@ module github.com/arabkood/backend
 go 1.24.0
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.36.1
 	github.com/aws/aws-sdk-go-v2/config v1.29.6
+	github.com/aws/aws-sdk-go-v2 v1.36.1
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.45.12
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.14
 	github.com/gin-gonic/gin v1.10.0
