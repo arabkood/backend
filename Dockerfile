@@ -1,28 +1,36 @@
-FROM golang:1.24.0-alpine
-
-RUN apk add --no-cache entr
-
-#Create a user with UID 1000 and GID 1000 (match your host user)
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser
-
-USER appuser
-
+FROM golang:1.24.0-alpine AS builder
 
 WORKDIR /app
 
+# Copy go mod and sum files
 COPY go.mod go.sum ./
+
+# Download dependencies
 RUN go mod download
 
+# Copy source code
 COPY . .
 
-USER root
-RUN chown -R appuser:appuser .
-RUN chmod -R 744 .
+# Build the application with production optimizations
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/main ./cmd/server 
 
-RUN mkdir /mnt/submissions
-RUN chown appuser:appuser /mnt/submissions
-RUN chmod 777 /mnt/submissions
+# Runtime stage
+FROM alpine:3.19
 
+WORKDIR /app
+
+# Install certificates for HTTPS requests
+RUN apk --no-cache add ca-certificates
+
+# Copy binary from build stage
+COPY --from=builder /app/main /app/main
+
+# Create a non-root user to run the application
+RUN adduser -D appuser
 USER appuser
-CMD ["sh", "/app/watch.sh"]
+
+# Expose the application port
+EXPOSE 8080
+
+# Command to run the application
+CMD ["/app/main"]
