@@ -10,13 +10,13 @@ server:
   host: "0.0.0.0"
   port: 8080
   corsOrigins:
-    - "http://localhost:5173"
-    - "http://localhost:4173"
-    - "http://localhost:3000"
-    - "http://192.168.1.69:8080"
-    - "http://dev.arabkood.com"
-    - "http://dev.arabkood.com:8080"
-    - "http://dev.alpha.akood.com"
+    # - "http://localhost:5173"
+    # - "http://localhost:4173"
+    # - "http://localhost:3000"
+    # - "http://192.168.1.69:8080"
+    # - "http://dev.arabkood.com"
+    # - "http://dev.arabkood.com:8080"
+    # - "http://dev.alpha.akood.com"
     - "http://alpha.akood.com"
     - "https://alpha.akood.com"
   readTimeout: "15s"
@@ -48,10 +48,11 @@ database:
 # Authentication Configuration
 auth:
   cookiesDomains:
-    - "dev.arabkood.com"
-    - "dev.akood.com"
-    - "localhost"
-    - "arabkood.com"
+    - "alpha.akood.com"
+    # - "dev.arabkood.com"
+    # - "dev.akood.com"
+    # - "localhost"
+    # - "arabkood.com"
   sessionCookieName: "arabkood_session_token"
   sessionTokenExpiryHours: 720 # 30 days
   emailVerificationExpiryMinutes: 1440 # 24 hours
