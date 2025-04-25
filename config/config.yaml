@@ -18,6 +18,7 @@ server:
     - "http://dev.arabkood.com:8080"
     - "http://dev.alpha.akood.com"
     - "http://alpha.akood.com"
+    - "https://alpha.akood.com"
   readTimeout: "15s"
   writeTimeout: "15s"
   gracefulTimeout: "15s"
