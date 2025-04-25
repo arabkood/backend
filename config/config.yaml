@@ -2,7 +2,7 @@
 app:
   name: "Arabkood"
   environment: "development"
-  baseURL: "http://192.168.1.69:8080"
+  baseURL: "http://alpha.akood.com"
   debug: true
 
 # Server Configuration
@@ -10,13 +10,6 @@ server:
   host: "0.0.0.0"
   port: 8080
   corsOrigins:
-    # - "http://localhost:5173"
-    # - "http://localhost:4173"
-    # - "http://localhost:3000"
-    # - "http://192.168.1.69:8080"
-    # - "http://dev.arabkood.com"
-    # - "http://dev.arabkood.com:8080"
-    # - "http://dev.alpha.akood.com"
     - "http://alpha.akood.com"
     - "https://alpha.akood.com"
   readTimeout: "15s"
@@ -24,17 +17,14 @@ server:
   gracefulTimeout: "15s"
   internalAllowList:
     - "10.0.0.0/8"
-    - "192.168.1.69"
-    - "172.16.0.0/12"
-    - "172.20.0.0/12"
   internalAuthSecret: "HelloWorld"
 
 # Database Configuration
 database:
-  host: "192.168.1.69"
+  host: ""
   port: 5432
   username: "postgres"
-  password: "admin"
+  password: ""
   name: "arabkood_0"
   sslMode: "disable"
   # Connection pool settings
