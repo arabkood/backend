@@ -31,7 +31,7 @@ type OtherConfig struct {
 
 type AppConfig struct {
 	Name        string `validate:"required"`
-	Environment string `validate:"required,oneof=development production"`
+	Environment string `validate:"required,oneof=development production local"`
 	BaseURL     string `validate:"required,url"`
 	Debug       bool
 }

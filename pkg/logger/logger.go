@@ -62,7 +62,7 @@ func (w *cloudWatchWriter) Write(p []byte) (n int, err error) {
 func NewLogger(cfg *appConfig.Config) (*Logger, error) {
 	logger := &Logger{}
 
-	if cfg.App.Environment == "development" {
+	if cfg.App.Environment == "local" {
 		// Local development logging
 		output := zerolog.ConsoleWriter{
 			Out:        os.Stdout,
