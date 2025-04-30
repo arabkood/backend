@@ -69,6 +69,7 @@ aws:
   profile: "dev"
   endpoint: "http://172.17.0.1:4566"
   exercisesBucketName: "kood-modules-bucket"
+  logGroupName: "/ecs/ArabKood-Backend-dev"
 
 other:
   submissionsDirectory: "/mnt/submissions/"

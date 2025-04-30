@@ -87,13 +87,13 @@ func NewLogger(cfg *appConfig.Config) (*Logger, error) {
 	}
 
 	logger.cwClient = cloudwatchlogs.NewFromConfig(awsCfg)
-	logger.logGroupName = "/aws/apps/" + cfg.App.Name
+	logger.logGroupName = cfg.Aws.LogGroupName
 	logger.logStreamName = time.Now().Format("2006/01/02") + "/" + cfg.App.Environment
 
 	// Ensure log group exists
-	if err := logger.createLogGroupIfNotExists(); err != nil {
-		return nil, err
-	}
+	// if err := logger.createLogGroupIfNotExists(); err != nil {
+	// 	return nil, err
+	// }
 
 	// Create log stream
 	if err := logger.createLogStream(); err != nil {

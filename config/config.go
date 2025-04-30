@@ -81,6 +81,7 @@ type AWSConfig struct {
 	Profile             string `validate:"required"`
 	Endpoint            string `validate:"required"`
 	ExercisesBucketName string `validate:"required"`
+	LogGroupName        string `validate:"required"`
 }
 
 type AuthConfig struct {
