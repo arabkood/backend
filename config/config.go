@@ -172,7 +172,7 @@ func NewConfig(configName string) (*Config, error) {
 
 	validate := validator.New()
 	if err := validate.Struct(&config); err != nil {
-		return nil, fmt.Errorf("Missing required config \n%w", err)
+		return nil, fmt.Errorf("missing required config \n%w", err)
 	}
 
 	return &config, nil

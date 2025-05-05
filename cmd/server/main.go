@@ -39,6 +39,7 @@ func main() {
 	sdkOptions := []func(*awsConfig.LoadOptions) error{
 		awsConfig.WithRegion(config.Aws.Region),
 	}
+
 	// Add a flag in your config, e.g., `Aws.UseLocalCredentials` or check `App.Environment`
 	isLocalDev := config.App.Environment == "local"
 
