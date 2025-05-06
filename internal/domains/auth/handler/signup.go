@@ -68,7 +68,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		Email:             req.Email,
 		Username:          req.Username,
 		EncryptedPassword: string(hashedPassword),
-		EmailVerified:     false,
+		EmailVerified:     true,
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
 	}
