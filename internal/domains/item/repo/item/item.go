@@ -18,24 +18,10 @@ func NewItemRepository(querier postgres.Querier) *ItemRepository {
 	return &ItemRepository{querier: querier}
 }
 
-func (r *ItemRepository) GetItemBySlug(ctx context.Context, slug string) (*item.Item, *appErrors.Error) {
-	item := &item.Item{}
-
-	err := r.querier.QueryRow(ctx, "SELECT * FROM class.items WHERE slug = $1", slug).Scan(item)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, appErrors.ErrorNotFound()
-	}
-	if err != nil {
-		return nil, appErrors.ErrorInternal().WithError(err)
-	}
-
-	return item, nil
-}
-
 func (r *ItemRepository) GetItemById(ctx context.Context, id string) (*item.Item, *appErrors.Error) {
-	item := &item.Item{}
+	rows, _ := r.querier.Query(ctx, "SELECT * FROM class.items WHERE id = $1 LIMIT 1", id)
+	it, err := pgx.CollectOneRow(rows, pgx.RowToAddrOfStructByName[item.Item])
 
-	err := r.querier.QueryRow(ctx, "SELECT * FROM class.items WHERE id = $1", id).Scan(item)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, appErrors.ErrorNotFound()
 	}
@@ -43,5 +29,5 @@ func (r *ItemRepository) GetItemById(ctx context.Context, id string) (*item.Item
 		return nil, appErrors.ErrorInternal().WithError(err)
 	}
 
-	return item, nil
+	return it, nil
 }

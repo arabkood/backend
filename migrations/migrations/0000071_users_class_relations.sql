@@ -52,6 +52,6 @@ CREATE TABLE IF NOT EXISTS users.code_submission (
 );
 
 -- +goose Down
-DROP TABLE IF EXISTS users.user_tracks;
+DROP TABLE IF EXISTS users.track;
 DROP TABLE IF EXISTS users.user_items_submission;
 DROP TABLE IF EXISTS users.user_items_attempt;
