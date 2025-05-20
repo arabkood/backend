@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type ModuleHandler struct {
+type ItemHandler struct {
 	config    *appConfig.Config
 	db        *pgxpool.Pool
 	logger    *appLogger.Logger
@@ -17,8 +17,8 @@ type ModuleHandler struct {
 	s3Client  *s3.Client
 }
 
-func NewModuleHandler(config *appConfig.Config, db *pgxpool.Pool, logger *appLogger.Logger, sqsClient *sqs.Client, s3Client *s3.Client) *ModuleHandler {
-	return &ModuleHandler{
+func NewItemHandler(config *appConfig.Config, db *pgxpool.Pool, logger *appLogger.Logger, sqsClient *sqs.Client, s3Client *s3.Client) *ItemHandler {
+	return &ItemHandler{
 		config,
 		db,
 		logger,

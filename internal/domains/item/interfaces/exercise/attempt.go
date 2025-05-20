@@ -8,9 +8,9 @@ import (
 
 type Attempt struct {
 	// Keys
-	ID       uuid.UUID `json:"id" db:"id"`
-	UserID   uuid.UUID `json:"user_id" db:"user_id"`
-	ModuleID uuid.UUID `json:"module_id" db:"module_id"`
+	ID     uuid.UUID `json:"id" db:"id"`
+	UserID uuid.UUID `json:"user_id" db:"user_id"`
+	ItemID uuid.UUID `json:"item_id" db:"item_id"`
 
 	Status    string    `json:"status" db:"status"` // fail, error, success
 	Attempts  uint16    `json:"attempts" db:"attempts"`

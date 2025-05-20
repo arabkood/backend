@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	AppEnvDev  = "development"
 	AppEnvProd = "production"
+	AppEnvDev  = "development"
 )
 
 type Config struct {
@@ -75,13 +75,13 @@ type EmailConfig struct {
 }
 
 type AWSConfig struct {
-	Region              string `validate:"required"`
-	SubmissionQueueURL  string `validate:"required,url"`
-	CredentialsPath     string `validate:"required"`
-	Profile             string `validate:"required"`
-	Endpoint            string `validate:"required"`
-	ExercisesBucketName string `validate:"required"`
-	LogGroupName        string `validate:"required"`
+	Region             string `validate:"required"`
+	SubmissionQueueURL string `validate:"required,url"`
+	CredentialsPath    string `validate:"required"`
+	Profile            string `validate:"required"`
+	Endpoint           string `validate:"required"`
+	TopicsBucketName   string `validate:"required"`
+	LogGroupName       string `validate:"required"`
 }
 
 type AuthConfig struct {

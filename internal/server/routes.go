@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/arabkood/backend/internal/domains/auth"
-	"github.com/arabkood/backend/internal/domains/module"
+	"github.com/arabkood/backend/internal/domains/item"
 	"github.com/arabkood/backend/internal/domains/track"
 	"github.com/arabkood/backend/internal/domains/user"
 	"github.com/arabkood/backend/internal/middlewares"
@@ -37,7 +37,7 @@ func SetupRoutes(router *gin.Engine, srv *server.Server) error {
 
 	// Auth routes
 	auth.RegisterRoutes(api, srv)
-	module.RegisterRoutes(api, srv)
+	item.RegisterRoutes(api, srv)
 	track.RegisterRoutes(api, srv)
 	user.RegisterRoutes(api, srv)
 

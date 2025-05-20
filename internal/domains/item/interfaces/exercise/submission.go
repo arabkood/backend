@@ -8,9 +8,9 @@ import (
 
 type Submission struct {
 	// Keys
-	ID       uuid.UUID `json:"id" db:"id"`
-	UserID   uuid.UUID `json:"user_id" db:"user_id"`
-	ModuleID uuid.UUID `json:"module_id" db:"module_id"`
+	ID     uuid.UUID `json:"id" db:"id"`
+	UserID uuid.UUID `json:"user_id" db:"user_id"`
+	ItemID uuid.UUID `json:"item_id" db:"item_id"`
 
 	// Code Evaluated
 	XpReward  int64     `json:"xp_reward" db:"xp_reward"`

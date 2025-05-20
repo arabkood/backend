@@ -11,30 +11,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/arabkood/backend/internal/domains/module/interfaces/exercise"
-	exerciseRepo "github.com/arabkood/backend/internal/domains/module/repo/exercise"
-	repo "github.com/arabkood/backend/internal/domains/module/repo/module"
-	"github.com/arabkood/backend/internal/domains/module/runner"
+	"github.com/arabkood/backend/internal/domains/item/interfaces/exercise"
+	exerciseRepo "github.com/arabkood/backend/internal/domains/item/repo/exercise"
+	repoItem "github.com/arabkood/backend/internal/domains/item/repo/item"
+	"github.com/arabkood/backend/internal/domains/item/runner"
 	infraPostgres "github.com/arabkood/backend/internal/postgres"
 	appError "github.com/arabkood/backend/pkg/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-type File struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
-}
-
 type AttemptRequest struct {
-	UserFiles []File `form:"files" binding:"required" json:"files"`
+	UserFiles map[string]string `form:"files" binding:"required" json:"files"`
 }
 
 type AttemptResponse struct {
 	SubmissionID string `json:"submissionId"`
 }
 
-func (h *ModuleHandler) Attempt(c *gin.Context) {
+func (h *ItemHandler) Attempt(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
@@ -66,28 +61,28 @@ func (h *ModuleHandler) Attempt(c *gin.Context) {
 		h.logger.Error().Str("handler", "runner.attempt").
 			Int("approximate size in KB", userFilesBytes.Len()/1024).
 			Err(err).
-			Str("module", id).
+			Str("item", id).
 			Msg("User submission is too big")
 		appError.ErrorInvalidInput().WithMessage("Files submitted are too big, limit is 30KB").AbortWithErrorJson(c)
 		return
 	}
 
 	// Create repository instance
-	moduleRepo := repo.NewModuleRepository(h.db)
+	itemRepo := repoItem.NewItemRepository(h.db)
 
-	// Get module
-	module, aerr := moduleRepo.GetModuleById(ctx, id)
+	// Get item
+	item, aerr := itemRepo.GetItemById(ctx, id)
 	if aerr != nil {
 		aerr.Log(h.logger.Error().Str("handler", "runner.attempt"), true).
 			Str("id", id).
-			Msg("Failed to get module by ID")
+			Msg("Failed to get item by ID")
 		aerr.AbortWithErrorJson(c)
 		return
 	}
 
 	// Create or update attempt row in DB
 	newAttempt := &exercise.Attempt{
-		ModuleID:  module.ID,
+		ItemID:    item.ID,
 		UserID:    userID.(uuid.UUID),
 		UserFiles: userFilesBytes.Bytes(),
 	}
@@ -146,57 +141,58 @@ func (h *ModuleHandler) Attempt(c *gin.Context) {
 	}
 
 	// Get exercise files
-	exr := &exercise.Exercise{}
-	if module.Type == "exercise" {
-		exr, err = exerciseRepo.GetExercise(c, h.s3Client, h.config.Aws.ExercisesBucketName, module.Source)
+	code := &exercise.Code{}
+	if item.Type == "exercise" {
+		code, err = exerciseRepo.GetCode(c, h.s3Client, h.config.Aws.TopicsBucketName, item.S3Path)
 		if err != nil {
-			aerr.Log(h.logger.Error().Err(err).Str("handler", "module.GetModule"), true).
-				Msg("Failed to get module")
+			aerr.Log(h.logger.Error().Err(err).Str("handler", "exerciseRepo.GetCode"), true).
+				Msg("Failed to get code for exercice")
 			appError.ErrorInternal().AbortWithErrorJson(c)
 			return
 		}
 	}
 
 	errors := make(map[string]string)
-	for _, file := range req.UserFiles {
+
+	for path, content := range code.Files {
 		// Validate and sanitize the file path
-		fullPath, err := safeJoin(submissionPath, file.Path)
+		fullPath, err := safeJoin(submissionPath, path)
 		if err != nil {
-			errors[file.Path] = "Invalid path"
+			errors[path] = "Invalid path"
 			continue
 		}
 
 		// Create directory if it doesn't exist
 		dir := filepath.Dir(fullPath)
 		if err := os.MkdirAll(dir, 0766); err != nil {
-			errors[file.Path] = "Failed to create directory"
+			errors[path] = "Failed to create directory"
 			continue
 		}
 
 		// Write file content
-		if err := os.WriteFile(fullPath, []byte(file.Content), 0644); err != nil {
-			errors[file.Path] = "Failed to write file"
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			errors[path] = "Failed to write file"
 		}
 	}
 
-	for _, file := range exr.TestFiles {
+	for path, content := range req.UserFiles {
 		// Validate and sanitize the file path
-		fullPath, err := safeJoin(submissionPath, file.Path)
+		fullPath, err := safeJoin(submissionPath, path)
 		if err != nil {
-			errors[file.Path] = "Invalid path"
+			errors[path] = "Invalid path"
 			continue
 		}
 
 		// Create directory if it doesn't exist
 		dir := filepath.Dir(fullPath)
 		if err := os.MkdirAll(dir, 0766); err != nil {
-			errors[file.Path] = "Failed to create directory"
+			errors[path] = "Failed to create directory"
 			continue
 		}
 
-		// Write file content
-		if err := os.WriteFile(fullPath, []byte(*file.Content), 0644); err != nil {
-			errors[file.Path] = "Failed to write file"
+		// Write/Replace file content
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			errors[path] = "Failed to write file"
 		}
 	}
 
@@ -212,11 +208,11 @@ func (h *ModuleHandler) Attempt(c *gin.Context) {
 	job := &runner.SubmissionJob{
 		ID:     attemptID,
 		Type:   "test",
-		Runner: exr.Image,
-		InvocationArgs: append(module.PreArgs, []string{
+		Runner: code.Config.Image,
+		InvocationArgs: []string{
 			"/mnt/kood-iteration",
 			"/mnt/kood-iteration",
-		}...),
+		},
 	}
 
 	// Send the job
@@ -238,20 +234,20 @@ func (h *ModuleHandler) Attempt(c *gin.Context) {
 
 func upsertAttempt(ctx context.Context, querier infraPostgres.Querier, attempt *exercise.Attempt) (string, *appError.Error) {
 	query := `
-         INSERT INTO users.modules_attempt (
-              user_id, module_id,
+         INSERT INTO users.code_attempt (
+              user_id, item_id,
               user_files, status, attempts
          ) VALUES (
              $1, $2,
              $3, 'wait', 0
          )
-         ON CONFLICT (user_id, module_id) DO UPDATE
+         ON CONFLICT (user_id, item_id) DO UPDATE
          SET user_files = $3, id = gen_random_uuid(), status = 'wait', results = default
          RETURNING id`
 	var id string
 	err := querier.QueryRow(ctx, query,
 		attempt.UserID,
-		attempt.ModuleID,
+		attempt.ItemID,
 		attempt.UserFiles,
 	).Scan(&id)
 	if err != nil {

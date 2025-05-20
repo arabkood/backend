@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/arabkood/backend/internal/domains/module/interfaces/exercise"
-	moduleRepo "github.com/arabkood/backend/internal/domains/module/repo/module"
+	"github.com/arabkood/backend/internal/domains/item/interfaces/exercise"
+	itemRepo "github.com/arabkood/backend/internal/domains/item/repo/item"
 	"github.com/arabkood/backend/internal/postgres"
 	appError "github.com/arabkood/backend/pkg/errors"
 	"github.com/gin-gonic/gin"
@@ -34,7 +34,7 @@ type PostResultRequest struct {
 	Result TestResult `json:"result"`
 }
 
-func (h *ModuleHandler) PostResult(c *gin.Context) {
+func (h *ItemHandler) PostResult(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
 	defer cancel()
 
@@ -89,22 +89,22 @@ func (h *ModuleHandler) PostResult(c *gin.Context) {
 
 func handleSuccess(ctx context.Context, querier postgres.Querier, attempt *exercise.Attempt) *appError.Error {
 	// Get XP amount to reward user
-	mr := moduleRepo.NewModuleRepository(querier)
-	moduleID := attempt.ModuleID.String()
-	if moduleID == "" || moduleID == "00000000-0000-0000-0000-000000000000" {
-		return appError.ErrorInternal().WithMessage("Couldn't parse moduleID")
+	mr := itemRepo.NewItemRepository(querier)
+	itemID := attempt.ItemID.String()
+	if itemID == "" || itemID == "00000000-0000-0000-0000-000000000000" {
+		return appError.ErrorInternal().WithMessage("Couldn't parse itemID")
 	}
-	module, err := mr.GetModuleById(ctx, moduleID)
+	item, err := mr.GetItemById(ctx, itemID)
 	if err != nil {
 		return err
 	}
 	// Try to insert now submission
 	submission := &exercise.Submission{
-		ID:       attempt.ID,
-		UserID:   attempt.UserID,
-		ModuleID: attempt.ModuleID,
+		ID:     attempt.ID,
+		UserID: attempt.UserID,
+		ItemID: attempt.ItemID,
 
-		XpReward: int64(module.XPReward),
+		XpReward: int64(item.BaseXP),
 		Attempts: attempt.Attempts,
 
 		UserFiles: attempt.UserFiles,
@@ -120,11 +120,11 @@ func handleSuccess(ctx context.Context, querier postgres.Querier, attempt *exerc
 		}
 		return nil
 	}
-	_, err = upsertDailyStats(ctx, querier, attempt.UserID.String(), module.XPReward)
+	_, err = upsertDailyStats(ctx, querier, attempt.UserID.String(), item.BaseXP)
 	if err != nil {
 		return err
 	}
-	err = upsertStats(ctx, querier, attempt.UserID.String(), module.XPReward)
+	err = upsertStats(ctx, querier, attempt.UserID.String(), item.BaseXP)
 	if err != nil {
 		return err
 	}
@@ -178,14 +178,14 @@ func upsertDailyStats(ctx context.Context, querier postgres.Querier, userId stri
 
 func updateAttempt(ctx context.Context, querier postgres.Querier, attempt *exercise.Attempt) (*exercise.Attempt, *appError.Error) {
 	query := `
-        UPDATE users.modules_attempt 
+        UPDATE users.items_attempt 
         SET 
             status = $2,
             results = $3,
             attempts = attempts + 1,
             updated_at = NOW()
         WHERE id = $1
-        RETURNING id, user_id, module_id, status, attempts, created_at, updated_at, user_files, args, results`
+        RETURNING id, user_id, item_id, status, attempts, created_at, updated_at, user_files, args, results`
 
 	updatedAttempt := &exercise.Attempt{}
 	err := querier.QueryRow(ctx, query,
@@ -195,7 +195,7 @@ func updateAttempt(ctx context.Context, querier postgres.Querier, attempt *exerc
 	).Scan(
 		&updatedAttempt.ID,
 		&updatedAttempt.UserID,
-		&updatedAttempt.ModuleID,
+		&updatedAttempt.ItemID,
 		&updatedAttempt.Status,
 		&updatedAttempt.Attempts,
 		&updatedAttempt.CreatedAt,
@@ -213,8 +213,8 @@ func updateAttempt(ctx context.Context, querier postgres.Querier, attempt *exerc
 
 func insertSubmission(ctx context.Context, querier postgres.Querier, sub *exercise.Submission) (string, *appError.Error) {
 	query := `
-         INSERT INTO users.modules_submission (
-              id, user_id, module_id,
+         INSERT INTO users.items_submission (
+              id, user_id, item_id,
               user_files, args, results,
 							xp_reward, attempts
          ) VALUES (
@@ -227,7 +227,7 @@ func insertSubmission(ctx context.Context, querier postgres.Querier, sub *exerci
 	err := querier.QueryRow(ctx, query,
 		sub.ID,
 		sub.UserID,
-		sub.ModuleID,
+		sub.ItemID,
 		sub.UserFiles,
 		sub.Args,
 		sub.Results,
@@ -242,13 +242,13 @@ func insertSubmission(ctx context.Context, querier postgres.Querier, sub *exerci
 
 func updateSubmission(ctx context.Context, querier postgres.Querier, sub *exercise.Submission) *appError.Error {
 	query := `
-         UPDATE users.modules_submission SET
+         UPDATE users.items_submission SET
               user_files = $1,
               args = $2,
               results = $3,
               attempts = $4,
 							id = $5
-         WHERE user_id = $6 AND module_id = $7`
+         WHERE user_id = $6 AND item_id = $7`
 
 	_, err := querier.Exec(ctx, query,
 		sub.UserFiles,
@@ -257,7 +257,7 @@ func updateSubmission(ctx context.Context, querier postgres.Querier, sub *exerci
 		sub.Attempts,
 		sub.ID,
 		sub.UserID,
-		sub.ModuleID,
+		sub.ItemID,
 	)
 	if err != nil {
 		return appError.ErrorInternal().WithError(err)
