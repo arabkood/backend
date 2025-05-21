@@ -3,9 +3,11 @@ name: "arabkood/api"
 services:
   api:
     user: "1000:1000"
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     ports:
-      - 2007:2007
+      - 2007:80
     volumes:
       - .:/app
       - /home/achraf/.aws:/.aws:ro

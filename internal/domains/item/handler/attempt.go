@@ -204,11 +204,16 @@ func (h *ItemHandler) Attempt(c *gin.Context) {
 		return
 	}
 
+	img := "hello-world"
+	if code.Config.Image != "" {
+		img = code.Config.Image
+	}
+
 	// 4. Queue the job to SQS
 	job := &runner.SubmissionJob{
 		ID:     attemptID,
 		Type:   "test",
-		Runner: code.Config.Image,
+		Runner: img,
 		InvocationArgs: []string{
 			"/mnt/kood-iteration",
 			"/mnt/kood-iteration",

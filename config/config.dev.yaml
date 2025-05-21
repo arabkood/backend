@@ -1,7 +1,7 @@
 # Dev Config
 app:
   name: "Arabkood"
-  environment: "development"
+  environment: "local"
   baseURL: "http://api.alpha.arabkood.com"
   debug: true
 
@@ -34,7 +34,7 @@ database:
   port: 5432
   username: "postgres"
   password: "admin"
-  name: "arabkood_0"
+  name: "arabkood_3"
   sslMode: "disable"
   # Connection pool settings
   maxConnLifetime: "1h"
@@ -71,11 +71,12 @@ email:
 
 aws:
   region: "me-central-1"
-  submissionQueueURL: "https://localhost.localstack.cloud:4566/000000000000/Main_Runner_Queue"
+  submissionQueueURL: "http://sqs.me-central-1.localhost.localstack.cloud:4566/000000000000/Main_Runner_Queue"
   credentialsPath: "/.aws/credentials"
   profile: "dev"
   endpoint: "http://172.17.0.1:4566"
-  exercisesBucketName: "kood-modules-bucket"
+  topicsBucketName: "hellotopics"
+  logGroupName: "/ecs/ArabKood-Backend-dev"
 
 other:
   submissionsDirectory: "/mnt/submissions/"

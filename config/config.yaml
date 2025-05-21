@@ -52,7 +52,6 @@ auth:
   passwordResetCodeLength: 6
   passwordResetCodeChars: "0123456789"
 
-# Email Configuration (commented out as per original code)
 email:
   provider: "smtp"
   fromEmail: "noreply@arabkood.com"
@@ -68,7 +67,7 @@ aws:
   credentialsPath: "/.aws/credentials"
   profile: "dev"
   endpoint: "http://172.17.0.1:4566"
-  exercisesBucketName: "kood-modules-bucket"
+  topicsBucketName: "kood-topics-bucket"
   logGroupName: "/ecs/ArabKood-Backend-dev"
 
 other:
