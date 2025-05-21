@@ -142,7 +142,7 @@ func (h *ItemHandler) Attempt(c *gin.Context) {
 
 	// Get exercise files
 	code := &exercise.Code{}
-	if item.Type == "exercise" {
+	if item.Type == "code" {
 		code, err = exerciseRepo.GetCode(c, h.s3Client, h.config.Aws.TopicsBucketName, item.S3Path)
 		if err != nil {
 			aerr.Log(h.logger.Error().Err(err).Str("handler", "exerciseRepo.GetCode"), true).
@@ -150,6 +150,11 @@ func (h *ItemHandler) Attempt(c *gin.Context) {
 			appError.ErrorInternal().AbortWithErrorJson(c)
 			return
 		}
+	} else {
+		aerr.Log(h.logger.Error().Err(err).Str("handler", "exerciseRepo.GetCode"), true).
+			Msg("Attempted a no code item")
+		appError.ErrorInternal().AbortWithErrorJson(c)
+		return
 	}
 
 	errors := make(map[string]string)
