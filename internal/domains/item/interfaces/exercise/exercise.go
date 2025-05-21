@@ -9,9 +9,9 @@ package exercise
 // }
 
 type CodeConfig struct {
-	Image string            `json:"image"`
-	Files []CodeFileConfig  `json:"files"`
-	Flags map[string]string `json:"flags"`
+	Image string                 `json:"image"`
+	Files []CodeFileConfig       `json:"files"`
+	Flags map[string]interface{} `json:"flags"`
 }
 
 type CodeFileConfig struct {
