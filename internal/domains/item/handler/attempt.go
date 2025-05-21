@@ -145,13 +145,13 @@ func (h *ItemHandler) Attempt(c *gin.Context) {
 	if item.Type == "code" {
 		code, err = exerciseRepo.GetCode(c, h.s3Client, h.config.Aws.TopicsBucketName, item.S3Path)
 		if err != nil {
-			aerr.Log(h.logger.Error().Err(err).Str("handler", "exerciseRepo.GetCode"), true).
+			h.logger.Error().Err(err).Str("handler", "exerciseRepo.GetCode").
 				Msg("Failed to get code for exercice")
 			appError.ErrorInternal().AbortWithErrorJson(c)
 			return
 		}
 	} else {
-		aerr.Log(h.logger.Error().Err(err).Str("handler", "exerciseRepo.GetCode"), true).
+		h.logger.Error().Err(err).Str("handler", "exerciseRepo.GetCode").
 			Msg("Attempted a no code item")
 		appError.ErrorInternal().AbortWithErrorJson(c)
 		return
