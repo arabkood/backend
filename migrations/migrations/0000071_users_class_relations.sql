@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users.track (
     PRIMARY KEY (user_id, track_id)
 );
 
+-- TODO: delete
 -- One current attempt per item per user
 CREATE TABLE IF NOT EXISTS users.code_attempt (
     id UUID NOT NULL DEFAULT GEN_RANDOM_UUID() PRIMARY KEY,
@@ -32,6 +33,7 @@ CREATE TABLE IF NOT EXISTS users.code_attempt (
     UNIQUE (item_id, user_id)
 );
 
+-- TODO: delete
 -- One successful submission per item/user
 CREATE TABLE IF NOT EXISTS users.code_submission (
     id UUID NOT NULL DEFAULT GEN_RANDOM_UUID() PRIMARY KEY,
@@ -53,5 +55,7 @@ CREATE TABLE IF NOT EXISTS users.code_submission (
 
 -- +goose Down
 DROP TABLE IF EXISTS users.track;
+-- TODO: delete
 DROP TABLE IF EXISTS users.user_items_submission;
+-- TODO: delete
 DROP TABLE IF EXISTS users.user_items_attempt;

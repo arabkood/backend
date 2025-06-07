@@ -142,8 +142,8 @@ func (h *ItemHandler) Attempt(c *gin.Context) {
 
 	// Get exercise files
 	code := &exercise.Code{}
-	if item.Type == "code" {
-		code, err = exerciseRepo.GetCode(c, h.s3Client, h.config.Aws.TopicsBucketName, item.S3Path)
+	if *item.Type == "code" {
+		code, err = exerciseRepo.GetCode(c, h.s3Client, h.config.Aws.TopicsBucketName, *item.S3Path)
 		if err != nil {
 			h.logger.Error().Err(err).Str("handler", "exerciseRepo.GetCode").
 				Msg("Failed to get code for exercice")

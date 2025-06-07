@@ -12,6 +12,9 @@ func RegisterRoutes(router *gin.RouterGroup, srv *server.Server) {
 
 	handler := handler.NewItemHandler(srv.Config, srv.PostgresPool, srv.Logger, srv.Sqs, srv.S3)
 
+	withAuth := itemRoutes.Use(middlewares.AuthRequired(srv))
+	withAuth.POST("/submit/:itemId", handler.Submit)
+
 	// Code
 	codeRoutes := itemRoutes.Group("/code", middlewares.AuthRequired(srv))
 	codeRoutes.POST("/attempt/:id", handler.Attempt)
