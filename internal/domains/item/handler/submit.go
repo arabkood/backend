@@ -111,9 +111,10 @@ func (h *ItemHandler) Submit(c *gin.Context) {
 	}
 
 	if oldsubmission != nil {
+		// TODO: need to be careful with given XP for resubmitting
 		// disallow resubmitting if previous submition is successful
 		// disallow resubmitting if item type is lesson
-		cantResubmit := oldsubmission.Status == "success" || *item.Type == "lesson"
+		cantResubmit := oldsubmission.Status == "pass"
 		if cantResubmit {
 			res := SubmitResponse{
 				Submission: oldsubmission,
