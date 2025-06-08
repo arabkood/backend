@@ -7,12 +7,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	itemInterface "github.com/arabkood/backend/internal/domains/item/interfaces/item"
 	repoItem "github.com/arabkood/backend/internal/domains/item/repo/item"
+	xpRepo "github.com/arabkood/backend/internal/domains/xp/repo"
 	infraPostgres "github.com/arabkood/backend/internal/postgres"
 	appError "github.com/arabkood/backend/pkg/errors"
 	"github.com/gin-gonic/gin"
@@ -137,11 +139,12 @@ func (h *ItemHandler) Submit(c *gin.Context) {
 			return
 		}
 		xpMultiplier := float64(percent) / 100.0
-		newSubmission.XPReward = int(float64(item.BaseXP) * xpMultiplier)
 		if percent > 50 {
 			newSubmission.Status = "pass"
+			newSubmission.XPReward = int(float64(item.BaseXP) * xpMultiplier)
 		} else {
 			newSubmission.Status = "fail"
+			newSubmission.XPReward = 0
 		}
 	} else {
 		h.logger.Error().
@@ -151,12 +154,52 @@ func (h *ItemHandler) Submit(c *gin.Context) {
 		return
 	}
 
-	_, aerr = upsertSubmission(ctx, h.db, newSubmission)
+	// Start transaction
+	tx, err := h.db.Begin(ctx)
+	if err != nil {
+		h.logger.Error().
+			Err(err).
+			Msg("Failed to begin transaction for user submission")
+		appError.ErrorInternal().AbortWithErrorJson(c)
+		return
+	}
+	defer func() {
+		_ = tx.Rollback(context.Background())
+	}()
+
+	_, aerr = upsertSubmission(ctx, tx, newSubmission)
 	if aerr != nil {
 		aerr.Log(h.logger.Error().Str("handler", "runner.submit"), true).
 			Any("submission", newSubmission).
 			Msg("Failed to upsert submission")
 		aerr.AbortWithErrorJson(c)
+		return
+	}
+
+	if newSubmission.Status == "pass" && newSubmission.XPReward > 0 {
+		xpEvent := &xpRepo.XPEvent{
+			UserID:     userID.(uuid.UUID),
+			XPAmount:   newSubmission.XPReward,
+			SourceType: fmt.Sprintf("%s/%s", "item/", *item.Type),
+			SourceID:   item.ID,
+		}
+		err := xpRepo.AddXP(ctx, tx, *xpEvent)
+		if err != nil {
+			h.logger.Error().
+				Err(err).
+				Str("error", err.Error()).
+				Msg("Failed to add xp for user")
+			appError.ErrorInternal().AbortWithErrorJson(c)
+			return
+		}
+	}
+
+	// 5. Commit transaction
+	if err := tx.Commit(ctx); err != nil {
+		h.logger.Error().
+			Err(err).
+			Msg("Couldn't commit transaction")
+		appError.ErrorInternal().AbortWithErrorJson(c)
 		return
 	}
 
