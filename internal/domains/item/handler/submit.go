@@ -72,22 +72,32 @@ func (h *ItemHandler) Submit(c *gin.Context) {
 	// Create repository instance
 	itemRepo := repoItem.NewItemRepository(h.db)
 
-	// 1. Get previous submittion if exists
-	oldsubmission, aerr := getSubmission(ctx, h.db, userID.(uuid.UUID), itemId)
-	if aerr != nil {
-		aerr.Log(h.logger.Error().Str("handler", "runner.submit"), true).
-			Str("id", itemId).
-			Msg("Failed to get submission by user ID & item ID")
-		aerr.AbortWithErrorJson(c)
-		return
-	}
-
-	// 2. Get item
+	// 0. Get item
 	item, aerr := itemRepo.GetItemById(ctx, itemId)
 	if aerr != nil {
 		aerr.Log(h.logger.Error().Str("handler", "runner.submit"), true).
 			Str("id", itemId).
 			Msg("Failed to get item by ID")
+		aerr.AbortWithErrorJson(c)
+		return
+	}
+
+	// 1. Start Track if Already not Started
+	_, _, aerr = startTrackFromModule(ctx, h.db, userID.(uuid.UUID), item.ModuleID)
+	if aerr != nil {
+		aerr.Log(h.logger.Error().Str("handler", "runner.submit"), true).
+			Str("itemId", item.ID.String()).
+			Msg("failed to start track from module")
+		aerr.AbortWithErrorJson(c)
+		return
+	}
+
+	// 2. Get previous submittion if exists
+	oldsubmission, aerr := getSubmission(ctx, h.db, userID.(uuid.UUID), itemId)
+	if aerr != nil {
+		aerr.Log(h.logger.Error().Str("handler", "runner.submit"), true).
+			Str("id", itemId).
+			Msg("Failed to get submission by user ID & item ID")
 		aerr.AbortWithErrorJson(c)
 		return
 	}
@@ -242,6 +252,28 @@ func getSubmission(ctx context.Context, querier infraPostgres.Querier, userID uu
 	}
 
 	return &submission, nil
+}
+
+func startTrackFromModule(ctx context.Context, querier infraPostgres.Querier, userID, moduleID uuid.UUID) (string, string, *appError.Error) {
+	query := `
+		WITH track_for_module AS (
+			SELECT track_id FROM class.modules WHERE id = $1
+		), insert_user_track AS (
+			INSERT INTO users.track (user_id, track_id)
+			SELECT $2, track_id FROM track_for_module
+			ON CONFLICT (user_id, track_id) DO NOTHING
+			RETURNING user_id, track_id
+		)
+		SELECT user_id, track_id FROM insert_user_track
+		UNION
+		SELECT $2, track_id FROM track_for_module`
+
+	var returnedUserID, returnedTrackID string
+	err := querier.QueryRow(ctx, query, moduleID, userID).Scan(&returnedUserID, &returnedTrackID)
+	if err != nil {
+		return "", "", appError.ErrorInternal().WithError(err)
+	}
+	return returnedUserID, returnedTrackID, nil
 }
 
 func upsertSubmission(ctx context.Context, querier infraPostgres.Querier, submission *itemInterface.Submission) (string, *appError.Error) {
