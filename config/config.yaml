@@ -1,31 +1,41 @@
-# Application Configuration
+# Dev Config
 app:
   name: "Arabkood"
-  environment: "development"
-  baseURL: "http://alpha.akood.com"
+  environment: "local"
+  baseURL: "https://dev.arabkood.com"
   debug: true
 
 # Server Configuration
 server:
   host: "0.0.0.0"
-  port: 8080
+  port: 80
   corsOrigins:
-    - "http://alpha.akood.com"
-    - "https://alpha.akood.com"
+    - "http://localhost:5173"
+    - "http://localhost:4173"
+    - "http://localhost:3000"
+    - "http://192.168.1.69:8080"
+    - "http://dev.arabkood.com"
+    - "https://dev.arabkood.com"
+    - "http://dev.arabkood.com:8080"
+    - "http://dev.alpha.arabkood.com"
+    - "http://alpha.arabkood.com"
   readTimeout: "15s"
   writeTimeout: "15s"
   gracefulTimeout: "15s"
   internalAllowList:
     - "10.0.0.0/8"
+    - "192.168.1.69"
+    - "172.16.0.0/12"
+    - "172.20.0.0/12"
   internalAuthSecret: "HelloWorld"
 
 # Database Configuration
 database:
-  host: ""
+  host: "192.168.1.69"
   port: 5432
   username: "postgres"
-  password: ""
-  name: "arabkood_0"
+  password: "admin"
+  name: "arabkood_3"
   sslMode: "disable"
   # Connection pool settings
   maxConnLifetime: "1h"
@@ -38,11 +48,9 @@ database:
 # Authentication Configuration
 auth:
   cookiesDomains:
-    - "alpha.akood.com"
-    # - "dev.arabkood.com"
-    # - "dev.akood.com"
-    # - "localhost"
-    # - "arabkood.com"
+    - "dev.arabkood.com"
+    - "localhost"
+    - "arabkood.com"
   sessionCookieName: "arabkood_session_token"
   sessionTokenExpiryHours: 720 # 30 days
   emailVerificationExpiryMinutes: 1440 # 24 hours
@@ -52,6 +60,7 @@ auth:
   passwordResetCodeLength: 6
   passwordResetCodeChars: "0123456789"
 
+# Email Configuration (commented out as per original code)
 email:
   provider: "smtp"
   fromEmail: "noreply@arabkood.com"
@@ -62,12 +71,12 @@ email:
   smtpPass: "BLz94aN/CUfmJu+pUdqI4Z/ysNXIg3wirU7U7HWz4zlP"
 
 aws:
-  region: "me-south-1"
-  submissionQueueURL: "https://localhost.localstack.cloud:4566/000000000000/Main_Runner_Queue"
+  region: "me-central-1"
+  submissionQueueURL: "http://sqs.me-central-1.localhost.localstack.cloud:4566/000000000000/Main_Runner_Queue"
   credentialsPath: "/.aws/credentials"
   profile: "dev"
   endpoint: "http://172.17.0.1:4566"
-  topicsBucketName: "kood-topics-bucket"
+  topicsBucketName: "hellotopics"
   logGroupName: "/ecs/ArabKood-Backend-dev"
 
 other:
