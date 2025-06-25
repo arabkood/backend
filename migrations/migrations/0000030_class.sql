@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS class.topics
     title text NOT NULL,
     blurb text,
     logo text,
+    hash text,
 
 
     PRIMARY KEY (id)
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS class.tracks
     title text NOT NULL,
     blurb text,
     logo text,
+    hash text,
 
     premium_only boolean DEFAULT false,
 
@@ -38,6 +40,7 @@ CREATE TABLE IF NOT EXISTS class.modules
     id uuid NOT NULL DEFAULT GEN_RANDOM_UUID(),
     created_at timestamp with time zone NOT NULL DEFAULT NOW(),
     updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    hash text,
 
     title text NOT NULL,
     position integer,
@@ -53,6 +56,7 @@ CREATE TABLE IF NOT EXISTS class.items
     slug text NOT NULL,
     created_at timestamp with time zone NOT NULL DEFAULT NOW(),
     updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    hash text,
 
     type text,
     position integer,
