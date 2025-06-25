@@ -14,6 +14,7 @@ type Track struct {
 	Slug    string    `json:"slug" db:"slug"`
 	Blurb   string    `json:"blurb,omitempty" db:"blurb"`
 	Logo    string    `json:"logo,omitempty" db:"logo"`
+	Hash    string    `json:"hash,omitempty" db:"hash"`
 
 	// Attributes
 	PremiumOnly bool `json:"premium_only" db:"premium_only"`

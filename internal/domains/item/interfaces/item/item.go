@@ -13,6 +13,7 @@ type Item struct {
 	Slug      string    `json:"slug" db:"slug"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	Hash      string    `json:"hash,omitempty" db:"hash"`
 	// Attributes
 	Type        *string `json:"type,omitempty" db:"type"`
 	Position    *int    `json:"position,omitempty" db:"position"`
