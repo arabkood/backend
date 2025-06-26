@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS class.tracks
     hash text,
 
     premium_only boolean DEFAULT false,
+    coming_soon boolean DEFAULT false,
 
     PRIMARY KEY (id),
     CONSTRAINT slug UNIQUE (slug)
