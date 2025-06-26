@@ -19,6 +19,7 @@ type Track struct {
 	// Attributes
 	PremiumOnly bool `json:"premium_only" db:"premium_only"`
 	ComingSoon  bool `json:"coming_soon" db:"coming_soon"`
+	Position    *int `json:"position,omitempty" db:"position"`
 
 	// Timestamps
 	CreatedAt time.Time `json:"created_at" db:"created_at"`

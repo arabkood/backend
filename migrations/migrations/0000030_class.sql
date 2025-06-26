@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS class.tracks
 
     premium_only boolean DEFAULT false,
     coming_soon boolean DEFAULT false,
+    position integer,
 
     PRIMARY KEY (id),
     CONSTRAINT slug UNIQUE (slug)
