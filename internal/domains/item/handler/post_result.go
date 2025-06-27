@@ -3,12 +3,14 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/arabkood/backend/internal/domains/item/interfaces/exercise"
-	itemRepo "github.com/arabkood/backend/internal/domains/item/repo/item"
-	"github.com/arabkood/backend/internal/postgres"
+	itemInterface "github.com/arabkood/backend/internal/domains/item/interfaces/item"
+	repoItem "github.com/arabkood/backend/internal/domains/item/repo/item"
+	xpRepo "github.com/arabkood/backend/internal/domains/xp/repo"
+	infraPostgres "github.com/arabkood/backend/internal/postgres"
 	appError "github.com/arabkood/backend/pkg/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -53,214 +55,115 @@ func (h *ItemHandler) PostResult(c *gin.Context) {
 		return
 	}
 
-	// Update attempt row in DB
-	reqId, err := uuid.Parse(req.Id)
+	// Parse submission ID
+	submissionID, err := uuid.Parse(req.Id)
 	if err != nil {
 		h.logger.Debug().Err(err).Send()
 		appError.ErrorInvalidInput().AbortWithErrorJson(c)
 		return
 	}
-	newAttempt := &exercise.Attempt{
-		ID:      reqId,
-		Status:  req.Result.Status,
-		Results: res,
+
+	// Start transaction
+	tx, err := h.db.Begin(ctx)
+	if err != nil {
+		h.logger.Error().
+			Err(err).
+			Msg("Failed to begin transaction for result update")
+		appError.ErrorInternal().AbortWithErrorJson(c)
+		return
 	}
-	updatedAttempt, aerr := updateAttempt(ctx, h.db, newAttempt)
+	defer func() {
+		_ = tx.Rollback(context.Background())
+	}()
+
+	// Update submission with results
+	updatedSubmission, aerr := updateSubmissionWithResults(ctx, tx, submissionID, req.Result.Status, res)
 	if aerr != nil {
-		aerr.Log(h.logger.Error().Str("handler", "runner.attempt"), true).
-			Str("id", newAttempt.ID.String()).
-			Msg("Failed to update attempt")
+		aerr.Log(h.logger.Error().Str("handler", "runner.result"), true).
+			Str("id", submissionID.String()).
+			Msg("Failed to update submission with results")
 		aerr.AbortWithErrorJson(c)
 		return
 	}
-	if updatedAttempt.Status == "pass" {
-		aerr := handleSuccess(ctx, h.db, updatedAttempt)
+
+	// If the submission passed, handle XP reward
+	if updatedSubmission.Status == "pass" && updatedSubmission.XPReward > 0 {
+		// Get item details for XP event
+		itemRepo := repoItem.NewItemRepository(tx)
+		item, aerr := itemRepo.GetItemById(ctx, updatedSubmission.ItemID.String())
 		if aerr != nil {
-			aerr.Log(h.logger.Error().Str("handler", "runner.attempt"), true).
-				Str("id", updatedAttempt.ID.String()).
-				Msg("Failed to handle success attempt")
+			aerr.Log(h.logger.Error().Str("handler", "runner.result"), true).
+				Str("itemId", updatedSubmission.ItemID.String()).
+				Msg("Failed to get item details for XP event")
 			aerr.AbortWithErrorJson(c)
 			return
 		}
+
+		xpEvent := &xpRepo.XPEvent{
+			UserID:     updatedSubmission.UserID,
+			XPAmount:   updatedSubmission.XPReward,
+			SourceType: fmt.Sprintf("%s/%s", "item/", *item.Type),
+			SourceID:   item.ID,
+		}
+		err := xpRepo.AddXP(ctx, tx, *xpEvent)
+		if err != nil {
+			h.logger.Error().
+				Err(err).
+				Str("error", err.Error()).
+				Msg("Failed to add XP for successful submission")
+			appError.ErrorInternal().AbortWithErrorJson(c)
+			return
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit(ctx); err != nil {
+		h.logger.Error().
+			Err(err).
+			Msg("Couldn't commit transaction")
+		appError.ErrorInternal().AbortWithErrorJson(c)
+		return
 	}
 
 	c.Status(http.StatusOK)
 }
 
-func handleSuccess(ctx context.Context, querier postgres.Querier, attempt *exercise.Attempt) *appError.Error {
-	// Get XP amount to reward user
-	mr := itemRepo.NewItemRepository(querier)
-	itemID := attempt.ItemID.String()
-	if itemID == "" || itemID == "00000000-0000-0000-0000-000000000000" {
-		return appError.ErrorInternal().WithMessage("Couldn't parse itemID")
-	}
-	item, err := mr.GetItemById(ctx, itemID)
-	if err != nil {
-		return err
-	}
-	// Try to insert now submission
-	submission := &exercise.Submission{
-		ID:     attempt.ID,
-		UserID: attempt.UserID,
-		ItemID: attempt.ItemID,
-
-		XpReward: int64(item.BaseXP),
-		Attempts: attempt.Attempts,
-
-		UserFiles: attempt.UserFiles,
-		Args:      attempt.Args,
-		Results:   attempt.Results,
-	}
-	_, err = insertSubmission(ctx, querier, submission)
-	if err != nil {
-		// update submission instead
-		err = updateSubmission(ctx, querier, submission)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	_, err = upsertDailyStats(ctx, querier, attempt.UserID.String(), item.BaseXP)
-	if err != nil {
-		return err
-	}
-	err = upsertStats(ctx, querier, attempt.UserID.String(), item.BaseXP)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func upsertStats(ctx context.Context, querier postgres.Querier, userId string, xp_earned int) *appError.Error {
+func updateSubmissionWithResults(ctx context.Context, querier infraPostgres.Querier, submissionID uuid.UUID, status string, results map[string]any) (*itemInterface.Submission, *appError.Error) {
 	query := `
-    INSERT INTO users.stats (
-        user_id, total_xp, completed_items, last_active_at
-    ) VALUES (
-        $1, $2, 1, NOW()
-    )
-    ON CONFLICT (user_id) DO UPDATE
-    SET total_xp = users.stats.total_xp + $2,
-        completed_items = users.stats.completed_items + 1,
-        last_active_at = NOW();
-    `
-	_, err := querier.Exec(ctx, query,
-		userId,
-		xp_earned,
-	)
-	if err != nil {
-		return appError.ErrorInternal().WithError(err)
-	}
-	return nil
-}
+		UPDATE users.submission 
+		SET 
+			status = $2,
+			results = $3,
+			attempts = attempts + 1,
+			updated_at = NOW()
+		WHERE id = $1
+		RETURNING 
+			id, user_id, item_id,
+			status, xp_reward, attempts,
+			metadata, data, results,
+			created_at, updated_at`
 
-func upsertDailyStats(ctx context.Context, querier postgres.Querier, userId string, xp_earned int) (*time.Time, *appError.Error) {
-	query := `
-    INSERT INTO users.daily_stats (
-        user_id, date, xp_earned, items_completed
-    ) VALUES (
-        $1, CURRENT_DATE, $2, 1
-    )
-    ON CONFLICT (user_id, date) DO UPDATE
-    SET xp_earned = users.daily_stats.xp_earned + $2, 
-        items_completed = users.daily_stats.items_completed + 1
-    RETURNING date`
-	var date *time.Time
+	var submission itemInterface.Submission
 	err := querier.QueryRow(ctx, query,
-		userId,
-		xp_earned,
-	).Scan(&date)
-	if err != nil {
-		return nil, appError.ErrorInternal().WithError(err)
-	}
-	return date, nil
-}
-
-func updateAttempt(ctx context.Context, querier postgres.Querier, attempt *exercise.Attempt) (*exercise.Attempt, *appError.Error) {
-	query := `
-        UPDATE users.items_attempt 
-        SET 
-            status = $2,
-            results = $3,
-            attempts = attempts + 1,
-            updated_at = NOW()
-        WHERE id = $1
-        RETURNING id, user_id, item_id, status, attempts, created_at, updated_at, user_files, args, results`
-
-	updatedAttempt := &exercise.Attempt{}
-	err := querier.QueryRow(ctx, query,
-		attempt.ID,
-		attempt.Status,
-		attempt.Results,
+		submissionID,
+		status,
+		results,
 	).Scan(
-		&updatedAttempt.ID,
-		&updatedAttempt.UserID,
-		&updatedAttempt.ItemID,
-		&updatedAttempt.Status,
-		&updatedAttempt.Attempts,
-		&updatedAttempt.CreatedAt,
-		&updatedAttempt.UpdatedAt,
-		&updatedAttempt.UserFiles,
-		&updatedAttempt.Args,
-		&updatedAttempt.Results,
+		&submission.ID,
+		&submission.UserID,
+		&submission.ItemID,
+		&submission.Status,
+		&submission.XPReward,
+		&submission.Attempts,
+		&submission.Metadata,
+		&submission.Data,
+		&submission.Results,
+		&submission.CreatedAt,
+		&submission.UpdatedAt,
 	)
 	if err != nil {
 		return nil, appError.ErrorInternal().WithError(err)
 	}
 
-	return updatedAttempt, nil
-}
-
-func insertSubmission(ctx context.Context, querier postgres.Querier, sub *exercise.Submission) (string, *appError.Error) {
-	query := `
-         INSERT INTO users.items_submission (
-              id, user_id, item_id,
-              user_files, args, results,
-							xp_reward, attempts
-         ) VALUES (
-             $1, $2, $3,
-             $4, $5, $6,
-						 $7, $8
-         )
-         RETURNING id`
-	var id string
-	err := querier.QueryRow(ctx, query,
-		sub.ID,
-		sub.UserID,
-		sub.ItemID,
-		sub.UserFiles,
-		sub.Args,
-		sub.Results,
-		sub.XpReward,
-		sub.Attempts,
-	).Scan(&id)
-	if err != nil {
-		return "", appError.ErrorInternal().WithError(err)
-	}
-	return id, nil
-}
-
-func updateSubmission(ctx context.Context, querier postgres.Querier, sub *exercise.Submission) *appError.Error {
-	query := `
-         UPDATE users.items_submission SET
-              user_files = $1,
-              args = $2,
-              results = $3,
-              attempts = $4,
-							id = $5
-         WHERE user_id = $6 AND item_id = $7`
-
-	_, err := querier.Exec(ctx, query,
-		sub.UserFiles,
-		sub.Args,
-		sub.Results,
-		sub.Attempts,
-		sub.ID,
-		sub.UserID,
-		sub.ItemID,
-	)
-	if err != nil {
-		return appError.ErrorInternal().WithError(err)
-	}
-	return nil
+	return &submission, nil
 }

@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,6 +75,13 @@ func handleCode(c context.Context, h *ItemHandler, data DataType, item *itemInte
 		return appError.ErrorInternal().WithError(err).WithMessage("Wrong path when writing submission to EFS")
 	}
 
+	// Check what permissions we actually got after creation
+	if info, err := os.Stat(submissionPath); err == nil {
+		log.Printf("Directory created with permissions: %04o", info.Mode().Perm())
+	} else {
+		log.Printf("Failed to stat directory: %v", err)
+	}
+
 	// Remove directory if it exists
 	if _, err := os.Stat(submissionPath); err == nil {
 		if err := os.RemoveAll(submissionPath); err != nil {
@@ -81,8 +89,7 @@ func handleCode(c context.Context, h *ItemHandler, data DataType, item *itemInte
 		}
 	}
 
-	// Create a new directory
-	if err := os.Mkdir(submissionPath, 0750); err != nil {
+	if err := os.Mkdir(submissionPath, 0777); err != nil {
 		return appError.ErrorInternal().WithMeta("submissionPath", submissionPath).WithError(err).WithMessage("Failed to create submission directory")
 	}
 
@@ -105,7 +112,7 @@ func handleCode(c context.Context, h *ItemHandler, data DataType, item *itemInte
 
 		// Create directory if it doesn't exist
 		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0766); err != nil {
 			errors[path] = "Failed to create directory"
 			continue
 		}
@@ -126,7 +133,7 @@ func handleCode(c context.Context, h *ItemHandler, data DataType, item *itemInte
 
 		// Create directory if it doesn't exist
 		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0766); err != nil {
 			errors[path] = "Failed to create directory"
 			continue
 		}
@@ -152,6 +159,8 @@ func handleCode(c context.Context, h *ItemHandler, data DataType, item *itemInte
 		Type:   "test",
 		Runner: img,
 		InvocationArgs: []string{
+			// TODO: FIX
+			"hello-world",
 			"/mnt/kood-iteration",
 			"/mnt/kood-iteration",
 		},
