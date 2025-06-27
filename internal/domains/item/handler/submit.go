@@ -137,10 +137,19 @@ func (h *ItemHandler) Submit(c *gin.Context) {
 	}
 
 	if *item.Type == "code" {
-		// TODO: handle code runner queuing
-		HandleCode(req.Data)
+		aerr := handleCode(c, h, req.Data, item, newSubmission.ID)
+		newSubmission.Status = "wait"
+		newSubmission.XPReward = 0
+		if aerr != nil {
+			h.logger.Error().Str("handler", "runner.submit").
+				Err(aerr.Err).
+				Any("meta", aerr.Meta).
+				Msg(*aerr.Message)
+			aerr.AbortWithErrorJson(c)
+			return
+		}
 	} else if *item.Type == "lesson" {
-		percent, err := HandleLesson(req.Data)
+		percent, err := handleLesson(req.Data)
 		if err != nil {
 			h.logger.Error().Str("handler", "runner.submit").
 				Err(err).
@@ -317,11 +326,7 @@ func upsertSubmission(ctx context.Context, querier infraPostgres.Querier, submis
 	return id, nil
 }
 
-// FIX:
-func HandleCode(data DataType) {
-}
-
-func HandleLesson(data DataType) (int, error) {
+func handleLesson(data DataType) (int, error) {
 	encoded, ok := data["_$"].(string)
 	if !ok {
 		return 0, appError.ErrorInvalidInput()
