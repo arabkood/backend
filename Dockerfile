@@ -24,7 +24,7 @@ RUN apk --no-cache add ca-certificates
 
 # Copy binary from build stage
 COPY --from=builder /app/main /app/main
-COPY --from=builder /app/config/config.prod.yaml /app/config.yaml
+# COPY --from=builder /app/config/config.prod.yaml /app/config.yaml
 
 # Create a non-root user to run the application
 RUN adduser -D appuser
