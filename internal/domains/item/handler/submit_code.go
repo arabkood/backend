@@ -2,19 +2,17 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
+	"time"
 	"unicode/utf8"
 
-	"github.com/arabkood/backend/internal/domains/item/interfaces/exercise"
 	itemInterface "github.com/arabkood/backend/internal/domains/item/interfaces/item"
 	exerciseRepo "github.com/arabkood/backend/internal/domains/item/repo/exercise"
-	"github.com/arabkood/backend/internal/domains/item/runner"
 	appError "github.com/arabkood/backend/pkg/errors"
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
 )
 
 const (
@@ -24,215 +22,140 @@ const (
 	MaxFilenameLen = 255            // Maximum filename length
 )
 
-func handleCode(c context.Context, h *ItemHandler, data DataType, item *itemInterface.Item, subID uuid.UUID) *appError.Error {
-	subId := subID.String()
-	if subId == "" {
-		return appError.ErrorInternal()
-	}
+const (
+	TypeCodeExecution = "code:execute"
+)
 
-	userFiles, err := validateDataType(data)
-	if err != nil {
-		return appError.ErrorInvalidInput().WithError(err).WithMessage(err.Error())
-	}
-
-	// 2. Save User Files to EFS
-	safeJoin := func(basePath, userPath string) (string, error) {
-		// Clean and resolve absolute paths
-		basePath, err := filepath.Abs(filepath.Clean(basePath))
-		if err != nil {
-			return "", err
-		}
-
-		fullPath := filepath.Join(basePath, filepath.Clean(userPath))
-		fullPath, err = filepath.Abs(fullPath)
-		if err != nil {
-			return "", err
-		}
-
-		// Resolve symlinks
-		if _, err := os.Lstat(fullPath); err == nil {
-			resolvedPath, err := filepath.EvalSymlinks(fullPath)
-			if err != nil {
-				return "", err
-			}
-			fullPath = resolvedPath
-		}
-
-		// Check if still within base directory
-		rel, err := filepath.Rel(basePath, fullPath)
-		if err != nil {
-			return "", err
-		}
-		if strings.HasPrefix(rel, "..") || strings.Contains(rel, string(filepath.Separator)+"..") {
-			return "", fmt.Errorf("path has '..'")
-		}
-
-		return fullPath, nil
-	}
-
-	submissionPath, err := safeJoin(h.config.Other.SubmissionsDirectory, subId)
-	if err != nil {
-		return appError.ErrorInternal().WithError(err).WithMessage("Wrong path when writing submission to EFS")
-	}
-
-	// Check what permissions we actually got after creation
-	if info, err := os.Stat(submissionPath); err == nil {
-		log.Printf("Directory created with permissions: %04o", info.Mode().Perm())
-	} else {
-		log.Printf("Failed to stat directory: %v", err)
-	}
-
-	// Remove directory if it exists
-	if _, err := os.Stat(submissionPath); err == nil {
-		if err := os.RemoveAll(submissionPath); err != nil {
-			return appError.ErrorInternal().WithMeta("submissionPath", submissionPath).WithError(err).WithMessage("Failed to remove old submission directory")
-		}
-	}
-
-	if err := os.Mkdir(submissionPath, 0777); err != nil {
-		return appError.ErrorInternal().WithMeta("submissionPath", submissionPath).WithError(err).WithMessage("Failed to create submission directory")
-	}
-
-	// Get exercise files
-	code := &exercise.Code{}
-	code, err = exerciseRepo.GetCode(c, h.s3Client, h.config.Aws.TopicsBucketName, *item.S3Path)
-	if err != nil {
-		return appError.ErrorInternal().WithError(err).WithMessage("Failed to get code for exercice")
-	}
-
-	errors := make(map[string]string)
-
-	for path, content := range code.Files {
-		// Validate and sanitize the file path
-		fullPath, err := safeJoin(submissionPath, path)
-		if err != nil {
-			errors[path] = "Invalid path"
-			continue
-		}
-
-		// Create directory if it doesn't exist
-		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0766); err != nil {
-			errors[path] = "Failed to create directory"
-			continue
-		}
-
-		// Write file content
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-			errors[path] = "Failed to write file"
-		}
-	}
-
-	for path, content := range userFiles {
-		// Validate and sanitize the file path
-		fullPath, err := safeJoin(submissionPath, path)
-		if err != nil {
-			errors[path] = "Invalid path"
-			continue
-		}
-
-		// Create directory if it doesn't exist
-		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0766); err != nil {
-			errors[path] = "Failed to create directory"
-			continue
-		}
-
-		// Write/Replace file content
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-			errors[path] = "Failed to write file"
-		}
-	}
-
-	if len(errors) > 0 {
-		return appError.ErrorInvalidInput().WithMeta("errors", errors).WithMessage("Failed to create user files")
-	}
-
-	img := "hello-world"
-	if code.Config.Image != "" {
-		img = code.Config.Image
-	}
-
-	// 4. Queue the job to SQS
-	job := &runner.SubmissionJob{
-		ID:     subId,
-		Type:   "test",
-		Runner: img,
-		InvocationArgs: []string{
-			// TODO: FIX
-			"hello-world",
-			"/mnt/kood-iteration",
-			"/mnt/kood-iteration",
-		},
-	}
-
-	// Send the job
-	err = runner.SendJob(context.Background(), h.sqsClient, h.config.Aws.SubmissionQueueURL, job)
-	if err != nil {
-		return appError.ErrorInternal().WithError(err).WithMessage("Something went wrong with sending submission job to sqs")
-	}
-
-	return nil
+type CodeExecutionPayload struct {
+	SubmissionID   string            `json:"submission_id"`
+	UserID         string            `json:"user_id"`
+	Image          string            `json:"image"`
+	InvocationArgs []string          `json:"invocation_args"`
+	Files          map[string]string `json:"files"`
+	Metadata       map[string]string `json:"metadata,omitempty"`
 }
 
-func validateDataType(data DataType) (map[string]string, error) {
-	// Check if files key exists
-	filesRaw, exists := data["files"]
-	if !exists {
-		return nil, fmt.Errorf("missing 'files' field")
+func enqueueCodeExecutionTask(h *ItemHandler, queueName string, payloadStruct *CodeExecutionPayload) (*asynq.TaskInfo, error) {
+	payload, err := json.Marshal(payloadStruct)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal task payload: %w", err)
+	}
+	task := asynq.NewTask(TypeCodeExecution, payload, asynq.TaskID(payloadStruct.SubmissionID))
+
+	return h.AsynqClient.Enqueue(task,
+		asynq.Queue(queueName),
+		asynq.MaxRetry(0),
+		asynq.Deadline(time.Now().Add(5*time.Minute)),
+		asynq.Timeout(5*time.Minute),
+		asynq.Retention(1*time.Hour))
+}
+
+func handleCodeSubmission(c context.Context, h *ItemHandler, data DataType, item *itemInterface.Item, userID uuid.UUID, subID uuid.UUID) (*asynq.TaskInfo, *appError.Error) {
+	// 1. Validate Inputs (User and Submission IDs)
+	subIdStr := subID.String()
+	userIdStr := userID.String()
+	if subIdStr == "" || userIdStr == "" {
+		return nil, appError.ErrorInternal().WithMessage("Missing user or submission ID")
 	}
 
-	// Assert that files is a map[string]any first
+	// 2. Validate and Extract User-Submitted Files
+	userFiles, err := validateUserFiles(data)
+	if err != nil {
+		return nil, appError.ErrorInvalidInput().WithError(err).WithMessage(err.Error())
+	}
+
+	// 3. Fetch Exercise Base Files
+	// We fetch the exercise files to add them to the payload.
+	exerciseData, err := exerciseRepo.GetCode(c, h.S3Client, h.Config.S3.PvBucketName, *item.S3Path)
+	if err != nil {
+		return nil, appError.ErrorInternal().WithError(err).WithMessage("Failed to get code for exercise")
+	}
+
+	// 4. Combine Files for the Final Payload
+	// The user's files overwrite the exercise's base files, which is the desired behavior.
+	finalFiles := make(map[string]string)
+	for path, content := range exerciseData.Files {
+		finalFiles[path] = content
+	}
+	for path, content := range userFiles {
+		finalFiles[path] = content
+	}
+
+	// 5. Determine Docker Image and Invocation Arguments
+	if exerciseData.Config.Image == "" {
+		return nil, appError.ErrorInternal().WithError(err).WithMessage("Null image")
+	}
+	image := exerciseData.Config.Image
+	invocationArgs := []string{
+		"hello-world",
+		"/app/",
+		"/tmp/iteration/",
+	}
+
+	// 6. Construct the Final Payload
+	payload := &CodeExecutionPayload{
+		SubmissionID:   subIdStr,
+		UserID:         userIdStr,
+		Image:          image,
+		InvocationArgs: invocationArgs,
+		Files:          finalFiles,
+		Metadata:       map[string]string{"exercise_id": item.ID.String()},
+	}
+
+	// 7. Enqueue the Task
+	// For now, we hardcode the "default" queue. In future, we can add a premium queue here.
+	taskInfo, err := enqueueCodeExecutionTask(h, "default", payload)
+	if err != nil {
+		log.Printf("ERROR: Failed to enqueue code execution task: %v", err)
+		return nil, appError.ErrorInternal().WithError(err).WithMessage("Failed to queue submission")
+	}
+
+	log.Printf("Successfully enqueued task %s for submission %s", taskInfo.ID, subIdStr)
+	return taskInfo, nil
+}
+
+func validateUserFiles(data DataType) (map[string]string, error) {
+	filesRaw, exists := data["files"]
+	if !exists {
+		return nil, fmt.Errorf("missing 'files' field in request")
+	}
+
 	filesAny, ok := filesRaw.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("'files' must be a map[string]any, got %T", filesRaw)
 	}
 
-	// Convert and validate each file entry
-	files := make(map[string]string)
-	var totalSize int64
-
 	if len(filesAny) > MaxFileCount {
 		return nil, fmt.Errorf("too many files: %d (max %d)", len(filesAny), MaxFileCount)
 	}
 
+	files := make(map[string]string)
+	var totalSize int64
 	for filename, contentRaw := range filesAny {
-		// Validate filename
-		if filename == "" {
-			return nil, fmt.Errorf("empty filename not allowed")
-		}
-		if !utf8.ValidString(filename) {
-			return nil, fmt.Errorf("invalid UTF-8 in filename: %s", filename)
+		if filename == "" || !utf8.ValidString(filename) || len(filename) > MaxFilenameLen {
+			return nil, fmt.Errorf("invalid filename: %s", filename)
 		}
 
-		if len(filename) > MaxFilenameLen {
-			return nil, fmt.Errorf("filename too long: %d chars (max %d)", len(filename), MaxFilenameLen)
-		}
-
-		// Assert content is string
 		content, ok := contentRaw.(string)
 		if !ok {
-			return nil, fmt.Errorf("file content for '%s' must be string, got %T", filename, contentRaw)
+			return nil, fmt.Errorf("file content for '%s' must be a string", filename)
 		}
 
-		// Validate content is valid UTF-8
 		if !utf8.ValidString(content) {
 			return nil, fmt.Errorf("file content for '%s' contains invalid UTF-8", filename)
 		}
 
-		// Check individual file size
 		fileSize := int64(len(content))
 		if fileSize > MaxFileSize {
-			return nil, fmt.Errorf("file '%s' too large: %d bytes (max %d)", filename, fileSize, MaxFileSize)
+			return nil, fmt.Errorf("file '%s' is too large: %d bytes (max %d)", filename, fileSize, MaxFileSize)
 		}
 
 		totalSize += fileSize
 		files[filename] = content
 	}
 
-	// Check total size
 	if totalSize > MaxTotalSize {
-		return nil, fmt.Errorf("total files size too large: %d bytes (max %d)", totalSize, MaxTotalSize)
+		return nil, fmt.Errorf("total files size is too large: %d bytes (max %d)", totalSize, MaxTotalSize)
 	}
 
 	return files, nil

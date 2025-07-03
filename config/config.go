@@ -21,8 +21,25 @@ type Config struct {
 	Auth     AuthConfig     `validate:"required"`
 	Server   ServerConfig   `validate:"required"`
 	Database DatabaseConfig `validate:"required"`
+	ValKey   ValkeyConfig   `validate:"required"`
+	S3       S3Config       `validate:"required"`
 	Aws      AWSConfig      `validate:"required"`
 	Other    OtherConfig    `validate:"required"`
+}
+
+type S3Config struct {
+	Endpoint        string `validate:"required"`
+	Region          string `validate:"required"`
+	AccessKeyID     string `validate:"required"`
+	SecretAccessKey string `validate:"required"`
+	PvBucketName    string `validate:"required"`
+	UsePathStyle    bool
+}
+
+type ValkeyConfig struct {
+	Addr     string `validate:"required"`
+	AsynqDB  int    `validate:"gte=0,lte=15"`
+	Password string `validate:"required"`
 }
 
 type OtherConfig struct {
@@ -80,7 +97,6 @@ type AWSConfig struct {
 	CredentialsPath    string `validate:"required"`
 	Profile            string `validate:"required"`
 	Endpoint           string `validate:"required"`
-	TopicsBucketName   string `validate:"required"`
 	LogGroupName       string `validate:"required"`
 }
 

@@ -10,7 +10,13 @@ import (
 func RegisterRoutes(router *gin.RouterGroup, srv *server.Server) {
 	itemRoutes := router.Group("/item")
 
-	handler := handler.NewItemHandler(srv.Config, srv.PostgresPool, srv.Logger, srv.Sqs, srv.S3)
+	handler := &handler.ItemHandler{
+		Config:      srv.Config,
+		DB:          srv.PostgresPool,
+		Logger:      srv.Logger,
+		AsynqClient: srv.AsynqClient,
+		S3Client:    srv.S3,
+	}
 
 	// Require Internal auth
 	// FIX: THIS IS NOT SECURE AT ALL, USER CAN SUBMIT ANYTHING THEY WANT IF THEY HAVE SCRET WORD
@@ -18,8 +24,4 @@ func RegisterRoutes(router *gin.RouterGroup, srv *server.Server) {
 
 	withAuth := itemRoutes.Use(middlewares.AuthRequired(srv))
 	withAuth.POST("/submit/:itemId", handler.Submit)
-
-	// Code
-	codeRoutes := itemRoutes.Group("/code", middlewares.AuthRequired(srv))
-	codeRoutes.POST("/attempt/:id", handler.Attempt)
 }

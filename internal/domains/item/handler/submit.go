@@ -1,15 +1,13 @@
 package handler
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	itemInterface "github.com/arabkood/backend/internal/domains/item/interfaces/item"
@@ -32,201 +30,199 @@ type SubmitResponse struct {
 }
 
 func (h *ItemHandler) Submit(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
+	// 1. Authentication & Authorization
 	// Get user ID from auth context
-	userID, exists := c.Get("userID")
+	userIDAny, exists := c.Get("userID")
 	if !exists {
 		appError.ErrorUnauthorized().AbortWithErrorJson(c)
 		return
 	}
+	userID := userIDAny.(uuid.UUID)
 
 	itemId := c.Param("itemId")
 	if itemId == "" {
-		appError.ErrorInvalidInput().AbortWithErrorJson(c)
+		appError.ErrorInvalidInput().WithMessage("Item ID is required").AbortWithErrorJson(c)
 		return
 	}
 
-	// Bind request body
+	// 2. Input Binding & Validation
 	var req SubmitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.Debug().Err(err).Send()
-		appError.ErrorInvalidInput().AbortWithErrorJson(c)
+		appError.ErrorInvalidInput().WithError(err).AbortWithErrorJson(c)
 		return
 	}
 
-	dataBytes := new(bytes.Buffer)
-	err := json.NewEncoder(dataBytes).Encode(req.Data)
-	// 30KB limit
-	if dataBytes.Len() > 30*1024 || err != nil {
-		h.logger.Error().Str("handler", "runner.submit").
-			Int("approximate size in KB", dataBytes.Len()/1024).
-			Err(err).
-			Str("item", itemId).
-			Msg("User submission is too big")
-		appError.ErrorInvalidInput().WithMessage("Files submitted are too big, limit is 30KB").AbortWithErrorJson(c)
-		return
-	}
-
-	// Create repository instance
-	itemRepo := repoItem.NewItemRepository(h.db)
-
-	// 0. Get item
+	// 3. Fetch Core Data (Item and Previous Submission)
+	itemRepo := repoItem.NewItemRepository(h.DB)
 	item, aerr := itemRepo.GetItemById(ctx, itemId)
 	if aerr != nil {
-		aerr.Log(h.logger.Error().Str("handler", "runner.submit"), true).
-			Str("id", itemId).
-			Msg("Failed to get item by ID")
+		aerr.Log(h.Logger.Error().Str("handler", "Submit"), true).Msg("Failed to get item by ID")
 		aerr.AbortWithErrorJson(c)
 		return
 	}
 
-	// 1. Start Track if Already not Started
-	_, _, aerr = startTrackFromModule(ctx, h.db, userID.(uuid.UUID), item.ModuleID)
+	oldSubmission, aerr := getSubmission(ctx, h.DB, userID, itemId)
 	if aerr != nil {
-		aerr.Log(h.logger.Error().Str("handler", "runner.submit"), true).
-			Str("itemId", item.ID.String()).
-			Msg("failed to start track from module")
+		aerr.Log(h.Logger.Error().Str("handler", "Submit"), true).Msg("Failed to get previous submission")
 		aerr.AbortWithErrorJson(c)
 		return
 	}
 
-	// 2. Get previous submittion if exists
-	oldsubmission, aerr := getSubmission(ctx, h.db, userID.(uuid.UUID), itemId)
-	if aerr != nil {
-		aerr.Log(h.logger.Error().Str("handler", "runner.submit"), true).
-			Str("id", itemId).
-			Msg("Failed to get submission by user ID & item ID")
+	// 4. Business Logic: Check if user can resubmit
+	if oldSubmission != nil && oldSubmission.Status == "pass" {
+		c.JSON(http.StatusConflict, SubmitResponse{Submission: oldSubmission})
+		return
+	}
+
+	// 5. Start Track (ensures user is enrolled)
+	if _, _, aerr := startTrackFromModule(ctx, h.DB, userID, item.ModuleID); aerr != nil {
+		aerr.Log(h.Logger.Error().Str("handler", "Submit"), true).Msg("Failed to start track")
 		aerr.AbortWithErrorJson(c)
 		return
 	}
 
-	// Create or update attempt row in DB
+	// 6. Process Submission Based on Item Type
+	var newSubmission *itemInterface.Submission
+	var processingErr *appError.Error
+
+	switch *item.Type {
+	case "code":
+		newSubmission, processingErr = h.processCodeSubmission(ctx, item, userID, oldSubmission, req.Data)
+	case "lesson":
+		newSubmission, processingErr = h.processLessonSubmission(ctx, item, userID, oldSubmission, req.Data)
+	default:
+		log.Printf("CRITICAL: Item with invalid type submitted. ItemID: %s, Type: %s", item.ID, *item.Type)
+		processingErr = appError.ErrorInternal().WithMessage("Invalid item type encountered")
+	}
+
+	if processingErr != nil {
+		processingErr.Log(h.Logger.Error().Str("handler", "Submit"), true).Msg("Failed to process submission")
+		processingErr.AbortWithErrorJson(c)
+		return
+	}
+
+	// 7. Return Response to User
+	c.JSON(http.StatusOK, SubmitResponse{Submission: newSubmission})
+}
+
+func (h *ItemHandler) processCodeSubmission(ctx context.Context, item *itemInterface.Item, userID uuid.UUID, oldSubmission *itemInterface.Submission, data DataType) (*itemInterface.Submission, *appError.Error) {
+	// 1. Create a new Submission record in the database with "pending" status.
 	newSubmissionID, err := uuid.NewRandom()
 	if err != nil {
-		h.logger.Error().Str("handler", "runner.submit").
-			Err(err).
-			Msg("Couldn't generate random number")
-		appError.ErrorInternal().AbortWithErrorJson(c)
-		return
+		return nil, appError.ErrorInternal().WithError(err).WithMessage("Failed to generate submission ID")
 	}
 
-	newSubmission := &itemInterface.Submission{
+	attempts := 1
+	if oldSubmission != nil {
+		attempts = oldSubmission.Attempts + 1
+	}
+
+	// The `data` field now serves as a historical record of what the user submitted.
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, appError.ErrorInternal().WithError(err).WithMessage("Failed to marshal submission data")
+	}
+
+	submission := &itemInterface.Submission{
 		ID:       newSubmissionID,
 		ItemID:   item.ID,
-		UserID:   userID.(uuid.UUID),
-		Data:     dataBytes.Bytes(),
-		Status:   "wait",
-		XPReward: item.BaseXP,
-		Attempts: 1,
+		UserID:   userID,
+		Data:     dataBytes,
+		Status:   "pending",
+		XPReward: 0,
+		Attempts: attempts,
 	}
 
-	if oldsubmission != nil {
-		// TODO: need to be careful with given XP for resubmitting
-		// disallow resubmitting if previous submition is successful
-		// disallow resubmitting if item type is lesson
-		cantResubmit := oldsubmission.Status == "pass"
-		if cantResubmit {
-			res := SubmitResponse{
-				Submission: oldsubmission,
-			}
-			c.JSON(http.StatusConflict, res)
-			return
-		}
+	// We use an upsert here to create/update the submission record in one go.
+	if _, aerr := upsertSubmission(ctx, h.DB, submission); aerr != nil {
+		return nil, aerr
 	}
 
-	if *item.Type == "code" {
-		aerr := handleCode(c, h, req.Data, item, newSubmission.ID)
-		newSubmission.Status = "wait"
-		newSubmission.XPReward = 0
-		if aerr != nil {
-			h.logger.Error().Str("handler", "runner.submit").
-				Err(aerr.Err).
-				Any("meta", aerr.Meta).
-				Msg(*aerr.Message)
-			aerr.AbortWithErrorJson(c)
-			return
-		}
-	} else if *item.Type == "lesson" {
-		percent, err := handleLesson(req.Data)
-		if err != nil {
-			h.logger.Error().Str("handler", "runner.submit").
-				Err(err).
-				Msg("Couldn't handle the lesson data")
-			appError.ErrorInvalidInput().AbortWithErrorJson(c)
-			return
-		}
-		xpMultiplier := float64(percent) / 100.0
-		if percent > 50 {
-			newSubmission.Status = "pass"
-			newSubmission.XPReward = int(float64(item.BaseXP) * xpMultiplier)
-		} else {
-			newSubmission.Status = "fail"
-			newSubmission.XPReward = 0
-		}
-	} else {
-		h.logger.Error().
-			Str("id", itemId).
-			Msg("This should not happen: An item with an invalid type. WARN Content Developers to Fix it")
-		appError.ErrorInternal().AbortWithErrorJson(c)
-		return
-	}
-
-	// Start transaction
-	tx, err := h.db.Begin(ctx)
-	if err != nil {
-		h.logger.Error().
-			Err(err).
-			Msg("Failed to begin transaction for user submission")
-		appError.ErrorInternal().AbortWithErrorJson(c)
-		return
-	}
-	defer func() {
-		_ = tx.Rollback(context.Background())
-	}()
-
-	_, aerr = upsertSubmission(ctx, tx, newSubmission)
+	// 2. Enqueue the task for the invoker.
+	_, aerr := handleCodeSubmission(ctx, h, data, item, userID, newSubmissionID)
 	if aerr != nil {
-		aerr.Log(h.logger.Error().Str("handler", "runner.submit"), true).
-			Any("submission", newSubmission).
-			Msg("Failed to upsert submission")
-		aerr.AbortWithErrorJson(c)
-		return
+		h.Logger.Error().Str("error", aerr.Err.Error()).Str("msg", *aerr.Message).Send()
+		// If queueing fails, we update the submission status to "internal".
+		submission.Status = "internal"
+		if _, aerr2 := upsertSubmission(ctx, h.DB, submission); aerr != nil {
+			return submission, aerr2
+		}
+		return nil, aerr
 	}
 
-	if newSubmission.Status == "pass" && newSubmission.XPReward > 0 {
+	return submission, nil
+}
+
+func (h *ItemHandler) processLessonSubmission(ctx context.Context, item *itemInterface.Item, userID uuid.UUID, oldSubmission *itemInterface.Submission, data DataType) (*itemInterface.Submission, *appError.Error) {
+	percent, err := handleLesson(data)
+	if err != nil {
+		return nil, appError.ErrorInvalidInput().WithError(err).WithMessage("Invalid lesson data")
+	}
+
+	newSubmissionID, err := uuid.NewRandom()
+	if err != nil {
+		return nil, appError.ErrorInternal().WithError(err).WithMessage("Failed to generate submission ID")
+	}
+
+	attempts := 1
+	if oldSubmission != nil {
+		attempts = oldSubmission.Attempts + 1
+	}
+
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, appError.ErrorInternal().WithError(err).WithMessage("Failed to marshal submission data")
+	}
+
+	submission := &itemInterface.Submission{
+		ID:       newSubmissionID,
+		ItemID:   item.ID,
+		UserID:   userID,
+		Data:     dataBytes,
+		Attempts: attempts,
+	}
+
+	// Determine status and XP
+	if percent > 50 {
+		submission.Status = "pass"
+		xpMultiplier := float64(percent) / 100.0
+		submission.XPReward = int(float64(item.BaseXP) * xpMultiplier)
+	} else {
+		submission.Status = "fail"
+		submission.XPReward = 0
+	}
+
+	// Use a single transaction for submission and XP to ensure atomicity.
+	tx, err := h.DB.Begin(ctx)
+	if err != nil {
+		return nil, appError.ErrorInternal().WithError(err).WithMessage("Failed to begin transaction")
+	}
+	defer tx.Rollback(context.Background()) // Defer rollback in case of panic or early return
+
+	if _, aerr := upsertSubmission(ctx, tx, submission); aerr != nil {
+		return nil, aerr
+	}
+
+	if submission.Status == "pass" && submission.XPReward > 0 {
 		xpEvent := &xpRepo.XPEvent{
-			UserID:     userID.(uuid.UUID),
-			XPAmount:   newSubmission.XPReward,
-			SourceType: fmt.Sprintf("%s/%s", "item/", *item.Type),
+			UserID:     userID,
+			XPAmount:   submission.XPReward,
+			SourceType: fmt.Sprintf("item/%s", *item.Type),
 			SourceID:   item.ID,
 		}
-		err := xpRepo.AddXP(ctx, tx, *xpEvent)
-		if err != nil {
-			h.logger.Error().
-				Err(err).
-				Str("error", err.Error()).
-				Msg("Failed to add xp for user")
-			appError.ErrorInternal().AbortWithErrorJson(c)
-			return
+		if err := xpRepo.AddXP(ctx, tx, *xpEvent); err != nil {
+			return nil, appError.ErrorInternal().WithError(err).WithMessage("Failed to add XP")
 		}
 	}
 
-	// 5. Commit transaction
 	if err := tx.Commit(ctx); err != nil {
-		h.logger.Error().
-			Err(err).
-			Msg("Couldn't commit transaction")
-		appError.ErrorInternal().AbortWithErrorJson(c)
-		return
+		return nil, appError.ErrorInternal().WithError(err).WithMessage("Failed to commit transaction")
 	}
 
-	// Return response
-	res := SubmitResponse{
-		Submission: newSubmission,
-	}
-	c.JSON(http.StatusOK, res)
+	return submission, nil
 }
 
 func getSubmission(ctx context.Context, querier infraPostgres.Querier, userID uuid.UUID, itemID string) (*itemInterface.Submission, *appError.Error) {
@@ -324,39 +320,4 @@ func upsertSubmission(ctx context.Context, querier infraPostgres.Querier, submis
 		return "", appError.ErrorInternal().WithError(err)
 	}
 	return id, nil
-}
-
-func handleLesson(data DataType) (int, error) {
-	encoded, ok := data["_$"].(string)
-	if !ok {
-		return 0, appError.ErrorInvalidInput()
-	}
-	/*
-	 * Lore Time:
-	 *
-	 * This is a coding teaching website and since hacking can be considered coding too
-	 * I wanna make it possible to cheat in the lesson quizes and get full score without answering,
-	 * but we should not make it that easy, therefore the obfuscation
-	 */
-	salt := 69
-	decodedBytes, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return 0, err
-	}
-
-	raw, err := strconv.Atoi(string(decodedBytes))
-	if err != nil {
-		return 0, err
-	}
-
-	percent := raw / salt
-
-	// Clamp to 0–100 range: above 100 or below 0 is dangerous and not allowed :)
-	if percent > 100 {
-		percent = 100
-	} else if percent < 0 {
-		percent = 0
-	}
-
-	return percent, nil
 }

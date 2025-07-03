@@ -5,6 +5,19 @@ app:
   baseURL: "http://alpha.akood.com"
   debug: true
 
+s3:
+  endpoint: ""
+  region: ""
+  accessKeyID: ""
+  secretAccessKey: ""
+  pvBucketName: "akood-pv"
+  usePathStyle: true
+
+valkey:
+  addr: ""
+  asynqDB: 1
+  password: ""
+
 # Server Configuration
 server:
   host: "0.0.0.0"
@@ -67,7 +80,6 @@ aws:
   credentialsPath: "/.aws/credentials"
   profile: "dev"
   endpoint: "http://172.17.0.1:4566"
-  topicsBucketName: "kood-topics-bucket"
   logGroupName: "/ecs/ArabKood-Backend-dev"
 
 other:

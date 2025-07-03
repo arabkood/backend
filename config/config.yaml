@@ -30,6 +30,19 @@ server:
     - "172.20.0.1/12"
   internalAuthSecret: "HelloWorld"
 
+s3:
+  endpoint: ""
+  region: ""
+  accessKeyID: ""
+  secretAccessKey: ""
+  pvBucketName: "akood-pv"
+  usePathStyle: true
+
+valkey:
+  addr: ""
+  asynqDB: 1
+  password: ""
+
 # Database Configuration
 database:
   host: "192.168.1.69"
@@ -77,7 +90,6 @@ aws:
   credentialsPath: "/.aws/credentials"
   profile: "dev"
   endpoint: "http://172.17.0.1:4566"
-  topicsBucketName: "localaws-topics-bucket"
   logGroupName: "/ecs/ArabKood-Backend-dev"
 
 other:
