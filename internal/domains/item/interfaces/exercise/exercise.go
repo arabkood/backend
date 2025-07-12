@@ -12,6 +12,7 @@ type CodeConfig struct {
 	Image string           `json:"image"`
 	Files []CodeFileConfig `json:"files"`
 	Flags map[string]any   `json:"flags"`
+	Tests []string         `json:"tests"`
 }
 
 type CodeFileConfig struct {

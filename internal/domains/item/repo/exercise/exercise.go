@@ -21,15 +21,16 @@ func GetCode(ctx context.Context, client *s3.Client, bucketName string, source s
 
 	basePath := path.Join("topics", source)
 
+	// NOTE: config.json has been moved inside files/.meta/config.json
 	// 1. Fetch and parse config.json
-	cfgContent, err := fetchS3File(ctx, client, bucketName, path.Join(basePath, "config.json"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch config.json: %w", err)
-	} else {
-		if err := json.Unmarshal([]byte(cfgContent), &code.Config); err != nil {
-			return nil, fmt.Errorf("invalid config.json format: %w", err)
-		}
-	}
+	// cfgContent, err := fetchS3File(ctx, client, bucketName, path.Join(basePath, "config.json"))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to fetch config.json: %w", err)
+	// } else {
+	// 	if err := json.Unmarshal([]byte(cfgContent), &code.Config); err != nil {
+	// 		return nil, fmt.Errorf("invalid config.json format: %w", err)
+	// 	}
+	// }
 
 	// 2. Fetch and unzip files.bundle.zip
 	filesZip, err := fetchS3Bytes(ctx, client, bucketName, path.Join(basePath, "files.bundle.zip"))
@@ -40,6 +41,22 @@ func GetCode(ctx context.Context, client *s3.Client, bucketName string, source s
 	if err != nil {
 		return nil, fmt.Errorf("could not unzip files.bundle.zip: %w", err)
 	}
+
+	cfgContent, ok := filesMap[".meta/config.json"]
+	if !ok {
+		return nil, fmt.Errorf(".meta/config.json not found: %w", err)
+	}
+	if err := json.Unmarshal([]byte(cfgContent), &code.Config); err != nil {
+		return nil, fmt.Errorf("invalid .meta/config.json format: %w", err)
+	}
+
+	// Remove all entries where the key starts with ".meta"
+	// for name := range filesMap {
+	// 	if strings.HasPrefix(name, ".meta") {
+	// 		delete(filesMap, name)
+	// 	}
+	// }
+
 	code.Files = filesMap
 
 	// 3. Fetch and unzip docs.bundle.zip
