@@ -18,6 +18,12 @@ type User struct {
 	EmailVerified     bool       `json:"email_verified" db:"email_verified"`
 	EmailVerifiedAt   *time.Time `json:"email_verified_at,omitempty" db:"email_verified_at"`
 
+	// Subscription / Polar fields
+	PremiumActive        bool        `json:"premium_active" db:"premium_active"`
+	PolarLastSyncedAt    *time.Time  `json:"polar_last_synced_at,omitempty" db:"polar_last_synced_at"`
+	PolarCustomerID      *uuid.UUID  `json:"polar_customer_id,omitempty" db:"polar_customer_id"`
+	PolarSubscriptionIDs []uuid.UUID `json:"polar_subscription_ids,omitempty" db:"polar_subscription_ids"`
+
 	// Timestamps
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`

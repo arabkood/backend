@@ -20,7 +20,7 @@ func RegisterRoutes(router *gin.RouterGroup, srv *server.Server) {
 
 	// Require Internal auth
 	// FIX: THIS IS NOT SECURE AT ALL, USER CAN SUBMIT ANYTHING THEY WANT IF THEY HAVE SCRET WORD
-	itemRoutes.POST("/code/result", middlewares.InternalOnly(srv), handler.PostResult)
+	router.POST("/internal/code/result", middlewares.InternalOnly(srv), handler.PostResult)
 
 	withAuth := itemRoutes.Use(middlewares.AuthRequired(srv))
 	withAuth.POST("/submit/:itemId", handler.Submit)

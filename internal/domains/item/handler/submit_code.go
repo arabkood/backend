@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"maps"
 	"time"
 	"unicode/utf8"
 
+	"github.com/arabkood/backend/internal/domains/item/interfaces/exercise"
 	itemInterface "github.com/arabkood/backend/internal/domains/item/interfaces/item"
 	exerciseRepo "github.com/arabkood/backend/internal/domains/item/repo/exercise"
 	appError "github.com/arabkood/backend/pkg/errors"
@@ -74,12 +76,9 @@ func handleCodeSubmission(c context.Context, h *ItemHandler, data DataType, item
 	// 4. Combine Files for the Final Payload
 	// The user's files overwrite the exercise's base files, which is the desired behavior.
 	finalFiles := make(map[string]string)
-	for path, content := range exerciseData.Files {
-		finalFiles[path] = content
-	}
-	for path, content := range userFiles {
-		finalFiles[path] = content
-	}
+	maps.Copy(finalFiles, exerciseData.Files)
+	userFiles = cleanUserFiles(exerciseData.Config.Files, userFiles)
+	maps.Copy(finalFiles, userFiles)
 
 	// 5. Determine Docker Image and Invocation Arguments
 	if exerciseData.Config.Image == "" {
@@ -159,4 +158,18 @@ func validateUserFiles(data DataType) (map[string]string, error) {
 	}
 
 	return files, nil
+}
+
+func cleanUserFiles(configFiles []exercise.CodeFileConfig, userFiles map[string]string) map[string]string {
+	newFiles := map[string]string{}
+	for _, f := range configFiles {
+		if f.Ro != nil && *f.Ro {
+			continue
+		}
+		val, ok := userFiles[f.Path]
+		if ok {
+			newFiles[f.Path] = val
+		}
+	}
+	return newFiles
 }
