@@ -172,7 +172,6 @@ func (r *UserRepository) GetByEmailOrUsername(ctx context.Context, identifier st
 
 func (r *UserRepository) Update(ctx context.Context, user *domainUser.User) *appErrors.Error {
 	user.UpdatedAt = time.Now()
-
 	query := `
         UPDATE auth.users
         SET 
@@ -181,7 +180,11 @@ func (r *UserRepository) Update(ctx context.Context, user *domainUser.User) *app
             email_verified = $4,
             email_verified_at = $5,
             updated_at = $6,
-            encrypted_password = $7
+            encrypted_password = $7,
+            premium_active = $8,
+            polar_last_synced_at = $9,
+            polar_customer_id = $10,
+            polar_subscription_ids = $11
         WHERE id = $1`
 
 	commandTag, err := r.querier.Exec(
@@ -194,6 +197,10 @@ func (r *UserRepository) Update(ctx context.Context, user *domainUser.User) *app
 		user.EmailVerifiedAt,
 		user.UpdatedAt,
 		user.EncryptedPassword,
+		user.PremiumActive,
+		user.PolarLastSyncedAt,
+		user.PolarCustomerID,
+		user.PolarSubscriptionIDs,
 	)
 	if err != nil {
 		var pgErr *pgconn.PgError
