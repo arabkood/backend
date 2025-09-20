@@ -11,11 +11,12 @@ func RegisterRoutes(router *gin.RouterGroup, srv *server.Server) {
 	itemRoutes := router.Group("/item")
 
 	handler := &handler.ItemHandler{
-		Config:      srv.Config,
-		DB:          srv.PostgresPool,
-		Logger:      srv.Logger,
-		AsynqClient: srv.AsynqClient,
-		S3Client:    srv.S3,
+		Config:       srv.Config,
+		DB:           srv.PostgresPool,
+		Logger:       srv.Logger,
+		AsynqClient:  srv.AsynqClient,
+		S3Client:     srv.S3,
+		ValkeyClient: srv.ValkeyClient,
 	}
 
 	// Require Internal auth
@@ -24,4 +25,7 @@ func RegisterRoutes(router *gin.RouterGroup, srv *server.Server) {
 
 	withAuth := itemRoutes.Use(middlewares.AuthRequired(srv))
 	withAuth.POST("/submit/:itemId", handler.Submit)
+	withAuth.POST("/run/:itemId", handler.Run)
+
+	withAuth.GET("/run/:taskId/status", handler.GetRunStatus)
 }

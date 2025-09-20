@@ -5,6 +5,7 @@ import (
 
 	"github.com/arabkood/backend/config"
 	"github.com/arabkood/backend/internal/email"
+	"github.com/arabkood/backend/internal/valkey"
 	"github.com/arabkood/backend/pkg/logger"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
@@ -20,6 +21,7 @@ type Server struct {
 	EmailService *email.ProductionEmailService
 	AsynqClient  *asynq.Client
 	S3           *s3.Client
+	ValkeyClient *valkey.Client
 }
 
 func (s *Server) Start() error {

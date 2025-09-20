@@ -12,6 +12,7 @@ import (
 	s3internal "github.com/arabkood/backend/internal/s3"
 	"github.com/arabkood/backend/internal/server"
 	iserver "github.com/arabkood/backend/internal/server/interfaces/server"
+	"github.com/arabkood/backend/internal/valkey"
 	"github.com/arabkood/backend/migrations"
 	"github.com/arabkood/backend/pkg/logger"
 	"github.com/gin-gonic/gin"
@@ -60,6 +61,22 @@ func main() {
 	logger.Info().Msg("Initializing S3 Client")
 	s3Client := s3internal.NewS3Client(config.S3)
 
+	logger.Info().Msg("Initializing Valkey Client")
+	valkeyClient, err := valkey.NewClient(&config.ValKey, logger)
+	if err != nil {
+		pgPool.Close()
+		panic(err)
+	}
+	defer valkeyClient.Close()
+
+	logger.Info().Msg("Testing Valkey Connection")
+	err = valkeyClient.TestConnection(context.Background())
+	if err != nil {
+		pgPool.Close()
+		valkeyClient.Close()
+		panic(err)
+	}
+
 	logger.Info().Msg("Initializing Async Client")
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{
 		Addr:     config.ValKey.Addr,
@@ -79,6 +96,7 @@ func main() {
 		EmailService: emailService,
 		AsynqClient:  asynqClient,
 		S3:           s3Client,
+		ValkeyClient: valkeyClient,
 	}
 
 	err = server.SetupRoutes(router, srv)

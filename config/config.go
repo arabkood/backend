@@ -37,9 +37,10 @@ type S3Config struct {
 }
 
 type ValkeyConfig struct {
-	Addr     string `validate:"required"`
-	AsynqDB  int    `validate:"gte=0,lte=15"`
-	Password string `validate:"required"`
+	Addr      string `validate:"required"`
+	AsynqDB   int    `validate:"gte=0,lte=15"`
+	GeneralDB int    `validate:"gte=0,lte=15"`
+	Password  string `validate:"required"`
 }
 
 type OtherConfig struct {

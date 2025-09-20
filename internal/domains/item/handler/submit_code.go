@@ -29,12 +29,13 @@ const (
 )
 
 type CodeExecutionPayload struct {
-	SubmissionID   string            `json:"submission_id"`
+	TaskID         string            `json:"task_id"`
 	UserID         string            `json:"user_id"`
 	Image          string            `json:"image"`
 	InvocationArgs []string          `json:"invocation_args"`
 	Files          map[string]string `json:"files"`
 	Metadata       map[string]string `json:"metadata,omitempty"`
+	IsRunOnly      bool              `json:"is_run_only"`
 }
 
 func enqueueCodeExecutionTask(h *ItemHandler, queueName string, payloadStruct *CodeExecutionPayload) (*asynq.TaskInfo, error) {
@@ -42,7 +43,7 @@ func enqueueCodeExecutionTask(h *ItemHandler, queueName string, payloadStruct *C
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal task payload: %w", err)
 	}
-	task := asynq.NewTask(TypeCodeExecution, payload, asynq.TaskID(payloadStruct.SubmissionID))
+	task := asynq.NewTask(TypeCodeExecution, payload, asynq.TaskID(payloadStruct.TaskID))
 
 	return h.AsynqClient.Enqueue(task,
 		asynq.Queue(queueName),
@@ -85,18 +86,19 @@ func handleCodeSubmission(c context.Context, h *ItemHandler, data DataType, item
 		return nil, appError.ErrorInternal().WithError(err).WithMessage("Null image")
 	}
 	image := exerciseData.Config.Image
-	invocationArgs := []string{
-		"hello-world",
-		"/app/",
-		"/tmp/iteration/",
-	}
 
+	args := []string{
+		"solution",
+		"/app",
+		"/tmp",
+	}
 	// 6. Construct the Final Payload
 	payload := &CodeExecutionPayload{
-		SubmissionID:   subIdStr,
+		IsRunOnly:      false,
+		TaskID:         subIdStr,
 		UserID:         userIdStr,
 		Image:          image,
-		InvocationArgs: invocationArgs,
+		InvocationArgs: args,
 		Files:          finalFiles,
 		Metadata:       map[string]string{"exercise_id": item.ID.String()},
 	}
