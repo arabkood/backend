@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/arabkood/backend/config"
 	domainToken "github.com/arabkood/backend/internal/domains/auth/interfaces/token"
 	"github.com/arabkood/backend/internal/domains/auth/repo"
 	userRepo "github.com/arabkood/backend/internal/domains/user/repo"
@@ -130,6 +131,11 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 				Msg("Failed to send password reset email")
 		}
 	}()
+
+	// print code for non-production mode
+	if h.config.App.Environment != config.AppEnvProd {
+		h.logger.Warn().Str("token", ott.Token).Msg("[DEV ONLY] token for " + user.Email)
+	}
 
 	c.Status(200)
 }

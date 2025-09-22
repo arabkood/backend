@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/arabkood/backend/config"
 	domainToken "github.com/arabkood/backend/internal/domains/auth/interfaces/token"
 	"github.com/arabkood/backend/internal/domains/auth/repo"
 	domainUser "github.com/arabkood/backend/internal/domains/user/interfaces/user"
@@ -68,10 +69,15 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		Email:             req.Email,
 		Username:          req.Username,
 		EncryptedPassword: string(hashedPassword),
-		EmailVerified:     true,
+		EmailVerified:     false,
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
 	}
+
+	// only production need to verify email
+	// if h.config.App.Environment != config.AppEnvProd {
+	// 	newUser.EmailVerified = true
+	// }
 
 	// Start transaction
 	tx, err := h.db.Begin(ctx)
@@ -153,20 +159,28 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	}
 
 	// 6. If everything went good, send verification email asynchronously
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		err := h.emailSvc.SendVerificationEmail(ctx, &infraEmail.VerificationEmail{
-			To:       newUser.Email,
-			Username: newUser.Username,
-			Token:    emailVerificationCode,
-		})
-		if err != nil {
-			logError().
-				Err(err).
-				Msg("Failed to send verification email")
-		}
-	}()
+	// only send code in production
+	if h.config.App.Environment == config.AppEnvProd {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			err := h.emailSvc.SendVerificationEmail(ctx, &infraEmail.VerificationEmail{
+				To:       newUser.Email,
+				Username: newUser.Username,
+				Token:    emailVerificationCode,
+			})
+			if err != nil {
+				logError().
+					Err(err).
+					Msg("Failed to send verification email")
+			}
+		}()
+	}
+
+	// print code for non-production mode
+	if h.config.App.Environment != config.AppEnvProd {
+		h.logger.Warn().Str("token", emailVerificationCode).Msg("[DEV ONLY] token for " + newUser.Email)
+	}
 
 	// 8. Return success response
 	emailSent := true

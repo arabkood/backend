@@ -180,11 +180,8 @@ func (h *AuthHandler) Signin(c *gin.Context) {
 		Email:         user.Email,
 		Username:      user.Username,
 	}
-	if !user.EmailVerified {
-		res.EmailVerificationAlreadySent = &emailConfirmationCodeAlreadySent
-	} else {
-		// 7. Set auth cookies
-		h.setAuthCookies(c, sessionTokenStruct)
-	}
+	// 7. Set auth cookies
+	res.EmailVerificationAlreadySent = &emailConfirmationCodeAlreadySent
+	h.setAuthCookies(c, sessionTokenStruct)
 	c.JSON(200, res)
 }

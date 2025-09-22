@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/arabkood/backend/config"
 	domainToken "github.com/arabkood/backend/internal/domains/auth/interfaces/token"
 	"github.com/arabkood/backend/internal/domains/auth/repo"
 	userRepo "github.com/arabkood/backend/internal/domains/user/repo"
@@ -145,6 +146,11 @@ func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
 				Msg("Failed to send verification email")
 		}
 	}()
+
+	// print code for non-production mode
+	if h.config.App.Environment != config.AppEnvProd {
+		h.logger.Warn().Str("token", emailVerificationCode).Msg("[DEV ONLY] token for " + user.Email)
+	}
 
 	// Return success response
 	canResendCodeAt := time.Now().Add(time.Minute)

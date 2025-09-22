@@ -2,17 +2,14 @@ package email
 
 import (
 	"context"
-	"crypto/tls"
 	"embed"
 	"fmt"
 	"html/template"
 	"log"
-	"net"
 	"net/smtp"
 	"os"
 	"path"
 	"strings"
-	"time"
 
 	appConfig "github.com/arabkood/backend/config"
 )
@@ -127,64 +124,21 @@ func (s *ProductionEmailService) renderEmail(templateName string, data map[strin
 
 // sendEmail sends an email via SMTP with TLS
 func (s *ProductionEmailService) sendEmail(to, content, subject string) error {
-	addr := fmt.Sprintf("%s:%s", s.smtpHost, s.smtpPort)
-
-	// Set a shorter timeout for the connection
-	timeout := 5 * time.Second // adjust the timeout value as needed
-	dialer := &net.Dialer{
-		Timeout: timeout,
-	}
-
-	// Establish a TLS connection with the custom dialer
-	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{
-		InsecureSkipVerify: false,
-		ServerName:         s.smtpHost,
-		MinVersion:         tls.VersionTLS12,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to connect to SMTP server: %w", err)
-	}
-	defer conn.Close()
-
-	client, err := smtp.NewClient(conn, s.smtpHost)
-	if err != nil {
-		return fmt.Errorf("failed to create SMTP client: %w", err)
-	}
-	defer client.Quit()
-
 	auth := smtp.PlainAuth("", s.smtpUser, s.smtpPass, s.smtpHost)
-	if err := client.Auth(auth); err != nil {
-		return fmt.Errorf("failed to authenticate: %w", err)
-	}
-
-	if err := client.Mail(s.from); err != nil {
-		return fmt.Errorf("failed to set sender: %w", err)
-	}
-
-	if err := client.Rcpt(to); err != nil {
-		return fmt.Errorf("failed to set recipient: %w", err)
-	}
 
 	headers := fmt.Sprintf("From: %s\r\n"+
 		"To: %s\r\n"+
-		"Subject: "+subject+"\r\n"+
+		"Subject: %s\r\n"+
 		"MIME-Version: 1.0\r\n"+
 		"Content-Type: text/html; charset=\"UTF-8\"\r\n\r\n",
-		s.from, to)
+		s.from, to, subject)
 
-	message := headers + content
+	message := []byte(headers + content)
 
-	writer, err := client.Data()
-	if err != nil {
-		return fmt.Errorf("failed to start data transfer: %w", err)
-	}
+	addr := fmt.Sprintf("%s:%s", s.smtpHost, s.smtpPort)
 
-	_, err = writer.Write([]byte(message))
-	if err != nil {
-		return fmt.Errorf("failed to write email content: %w", err)
-	}
-
-	return writer.Close()
+	// Use smtp.SendMail which handles STARTTLS automatically
+	return smtp.SendMail(addr, auth, s.from, []string{to}, message)
 }
 
 // Email sending functions
@@ -206,7 +160,7 @@ func (s *ProductionEmailService) SendPasswordResetEmail(ctx context.Context, ema
 	data := map[string]interface{}{
 		"Username": email.Username,
 		"Token":    email.Token,
-		"LogoURL":  "https://www.arabkood.com/icon-32x32.png",
+		"LogoURL":  "https://www.akood.com/icon-32x32.png",
 	}
 	content, err := s.renderEmail("password_reset", data)
 	if err != nil {
@@ -219,7 +173,7 @@ func (s *ProductionEmailService) SendPasswordResetEmail(ctx context.Context, ema
 func (s *ProductionEmailService) SendWelcomeEmail(ctx context.Context, email *WelcomeEmail) error {
 	data := map[string]interface{}{
 		"Username": email.Username,
-		"LogoURL":  "https://www.arabkood.com/icon-32x32.png",
+		"LogoURL":  "https://www.akood.com/icon-32x32.png",
 	}
 	content, err := s.renderEmail("welcome", data)
 	if err != nil {
