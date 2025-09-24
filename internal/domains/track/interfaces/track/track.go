@@ -21,6 +21,9 @@ type Track struct {
 	ComingSoon  bool `json:"coming_soon" db:"coming_soon"`
 	Position    *int `json:"position,omitempty" db:"position"`
 
+	Difficulty *string  `json:"difficulty,omitempty" db:"difficulty"`
+	Tags       []string `json:"tags,omitempty" db:"tags"`
+
 	// Timestamps
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
