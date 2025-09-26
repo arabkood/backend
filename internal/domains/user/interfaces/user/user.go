@@ -35,6 +35,9 @@ type Stats struct {
 	CompletedItems int        `json:"completed_items" db:"completed_items"`
 	LongestStreak  int        `json:"longest_streak" db:"longest_streak"`
 	LastActiveAt   *time.Time `json:"last_active_at,omitempty" db:"last_active_at"`
+
+	CurrentStreak  int        `json:"current_streak" db:"current_streak"`
+	LastActiveDate *time.Time `json:"last_active_date,omitempty" db:"last_active_date"`
 }
 
 type DailyStats struct {
