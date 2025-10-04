@@ -149,7 +149,25 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		return
 	}
 
-	// 5. Commit transaction
+	// 5. Generate and set session token
+	sessionTokenStruct, err := domainToken.NewSessionToken(newUser.ID, time.Hour*time.Duration(h.config.Auth.SessionTokenExpiryHours))
+	if err != nil {
+		logError().
+			Err(err).
+			Msg("Couldn't generate session token after signup")
+		appErrors.ErrorInternal().AbortWithErrorJson(c)
+		return
+	}
+
+	sessionTokensRepo := repo.NewSessionTokensRepository(tx)
+	aerr = sessionTokensRepo.StoreToken(ctx, sessionTokenStruct)
+	if aerr != nil {
+		aerr.Log(logError(), true).Msg("Couldn't store session token after signup")
+		aerr.AbortWithErrorJson(c)
+		return
+	}
+
+	// 6. Commit transaction
 	if err := tx.Commit(ctx); err != nil {
 		logError().
 			Err(err).
@@ -158,7 +176,10 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		return
 	}
 
-	// 6. If everything went good, send verification email asynchronously
+	// 7. Set auth cookies
+	h.setAuthCookies(c, sessionTokenStruct)
+
+	// 8. If everything went good, send verification email asynchronously
 	// only send code in production
 	if h.config.App.Environment == config.AppEnvProd {
 		go func() {
@@ -182,7 +203,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		h.logger.Warn().Str("token", emailVerificationCode).Msg("[DEV ONLY] token for " + newUser.Email)
 	}
 
-	// 8. Return success response
+	// 9. Return success response
 	emailSent := true
 	canResendCodeAt := time.Now().Add(time.Minute)
 	c.JSON(201, RegisterResponse{
