@@ -72,7 +72,8 @@ func (h *ItemHandler) Submit(c *gin.Context) {
 	}
 
 	// 4. Business Logic: Check if user can resubmit
-	if oldSubmission != nil && oldSubmission.Status == "pass" {
+	alreadyPassed := oldSubmission != nil && oldSubmission.Status == "pass"
+	if alreadyPassed {
 		c.JSON(http.StatusConflict, SubmitResponse{Submission: oldSubmission})
 		return
 	}
