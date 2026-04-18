@@ -85,7 +85,6 @@ func main() {
 	})
 	defer asynqClient.Close()
 
-	// TODO: Consider using gin.New() and adding middleware selectively
 	router := gin.New()
 	router.Use(gin.Recovery())
 
