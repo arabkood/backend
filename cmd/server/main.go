@@ -13,7 +13,6 @@ import (
 	"github.com/arabkood/backend/internal/server"
 	iserver "github.com/arabkood/backend/internal/server/interfaces/server"
 	"github.com/arabkood/backend/internal/valkey"
-	"github.com/arabkood/backend/migrations"
 	"github.com/arabkood/backend/pkg/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/hibiken/asynq"
@@ -30,11 +29,11 @@ func main() {
 		panic(err)
 	}
 
-	logger.Info().Msg("Running DB migrations")
-	err = migrations.MigrateUp(config)
-	if err != nil {
-		panic(err)
-	}
+	logger.Info().Msg("DB migrations responsibility went to SvelteKit service")
+	// err = migrations.MigrateUp(config)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	logger.Info().Msg("Configuring AWS SDK")
 
