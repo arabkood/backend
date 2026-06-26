@@ -84,13 +84,5 @@ email:
   smtpUser: "AKIAV7C53RKI7IPCOSJI"
   smtpPass: "BLz94aN/CUfmJu+pUdqI4Z/ysNXIg3wirU7U7HWz4zlP"
 
-aws:
-  region: "me-south-1"
-  submissionQueueURL: "http://sqs.me-south-1.localhost.localstack.cloud:4566/000000000000/ArabKood-DevSqs-dev-TaskQueueF51BE51C-897b2699"
-  credentialsPath: "/.aws/credentials"
-  profile: "dev"
-  endpoint: "http://172.17.0.1:4566"
-  logGroupName: "/ecs/ArabKood-Backend-dev"
-
 other:
   submissionsDirectory: "/mnt/submissions/"

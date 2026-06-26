@@ -23,7 +23,6 @@ type Config struct {
 	Database DatabaseConfig `validate:"required"`
 	ValKey   ValkeyConfig   `validate:"required"`
 	S3       S3Config       `validate:"required"`
-	Aws      AWSConfig      `validate:"required"`
 	Other    OtherConfig    `validate:"required"`
 }
 
@@ -92,14 +91,6 @@ type EmailConfig struct {
 	SMTPPass  string `validate:"required",mapstructure:"smtpPass"`
 }
 
-type AWSConfig struct {
-	Region             string `validate:"required"`
-	SubmissionQueueURL string `validate:"required,url"`
-	CredentialsPath    string `validate:"required"`
-	Profile            string `validate:"required"`
-	Endpoint           string `validate:"required"`
-	LogGroupName       string `validate:"required"`
-}
 
 type AuthConfig struct {
 	SessionCookieName              string   `validate:"required"`
