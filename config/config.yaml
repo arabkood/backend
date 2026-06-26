@@ -83,6 +83,3 @@ email:
   smtpPort: "465"
   smtpUser: "AKIAV7C53RKI7IPCOSJI"
   smtpPass: "BLz94aN/CUfmJu+pUdqI4Z/ysNXIg3wirU7U7HWz4zlP"
-
-other:
-  submissionsDirectory: "/mnt/submissions/"

@@ -11,7 +11,7 @@ services:
     volumes:
       - .:/app
       - /home/achraf/.aws:/.aws:ro
-      - /kood/submissions/:/mnt/submissions/:rw
+
     networks:
       - arabkoodapi-postgres-network
     extra_hosts:

@@ -20,9 +20,6 @@ USER root
 RUN chown -R appuser:appuser .
 RUN chmod -R 744 .
 
-RUN mkdir /mnt/submissions
-RUN chown appuser:appuser /mnt/submissions
-RUN chmod 777 /mnt/submissions
 
 USER appuser
 CMD ["sh", "/app/watch.sh"]

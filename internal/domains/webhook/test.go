@@ -43,7 +43,7 @@ func handleWebhook(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		log.Printf("Subscription deleted for %d.", subscription.ID)
+		log.Printf("Subscription deleted for %s.", subscription.ID)
 		// Then define and call a func to handle the deleted subscription.
 		// handleSubscriptionCanceled(subscription)
 	case "customer.subscription.updated":
@@ -54,7 +54,7 @@ func handleWebhook(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		log.Printf("Subscription updated for %d.", subscription.ID)
+		log.Printf("Subscription updated for %s.", subscription.ID)
 		// Then define and call a func to handle the successful attachment of a PaymentMethod.
 		// handleSubscriptionUpdated(subscription)
 	case "customer.subscription.created":
@@ -65,7 +65,7 @@ func handleWebhook(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		log.Printf("Subscription created for %d.", subscription.ID)
+		log.Printf("Subscription created for %s.", subscription.ID)
 		// Then define and call a func to handle the successful attachment of a PaymentMethod.
 		// handleSubscriptionCreated(subscription)
 	case "customer.subscription.trial_will_end":
@@ -76,7 +76,7 @@ func handleWebhook(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		log.Printf("Subscription trial will end for %d.", subscription.ID)
+		log.Printf("Subscription trial will end for %s.", subscription.ID)
 		// Then define and call a func to handle the successful attachment of a PaymentMethod.
 		// handleSubscriptionTrialWillEnd(subscription)
 	case "entitlements.active_entitlement_summary.updated":
@@ -87,7 +87,7 @@ func handleWebhook(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		log.Printf("Active entitlement summary updated for %d.", subscription.ID)
+		log.Printf("Active entitlement summary updated for %s.", subscription.ID)
 		// Then define and call a func to handle active entitlement summary updated.
 		// handleEntitlementUpdated(subscription)
 	default:

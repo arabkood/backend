@@ -23,7 +23,6 @@ type Config struct {
 	Database DatabaseConfig `validate:"required"`
 	ValKey   ValkeyConfig   `validate:"required"`
 	S3       S3Config       `validate:"required"`
-	Other    OtherConfig    `validate:"required"`
 }
 
 type S3Config struct {
@@ -42,9 +41,7 @@ type ValkeyConfig struct {
 	Password  string `validate:"required"`
 }
 
-type OtherConfig struct {
-	SubmissionsDirectory string `validate:"required,dirpath"`
-}
+
 
 type AppConfig struct {
 	Name        string `validate:"required"`
