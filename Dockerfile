@@ -1,4 +1,4 @@
-FROM golang:1.24.0-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.24.0-alpine AS builder
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ RUN go mod download
 COPY . .
 
 # Build the application with production optimizations
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/main ./cmd/server 
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /app/main ./cmd/server
 
 # Runtime stage
 FROM alpine:3.19

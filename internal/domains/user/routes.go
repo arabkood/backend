@@ -13,7 +13,7 @@ func RegisterRoutes(router *gin.RouterGroup, srv *server.Server) {
 	handler := handler.NewUserHandler(srv.Config, srv.PostgresPool, srv.Logger)
 
 	// FIX: THIS IS NOT SECURE AT ALL, USER CAN SUBMIT ANYTHING THEY WANT IF THEY HAVE SCRET WORD
-	router.POST("/internal/user/polarsync", middlewares.InternalOnly(srv), handler.PolarSync)
+	router.POST("/internal/user/stripesync", middlewares.InternalOnly(srv), handler.StripeSync)
 
 	// require auth
 	{

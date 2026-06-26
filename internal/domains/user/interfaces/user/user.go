@@ -18,15 +18,50 @@ type User struct {
 	EmailVerified     bool       `json:"email_verified" db:"email_verified"`
 	EmailVerifiedAt   *time.Time `json:"email_verified_at,omitempty" db:"email_verified_at"`
 
-	// Subscription / Polar fields
-	PremiumActive        bool        `json:"premium_active" db:"premium_active"`
-	PolarLastSyncedAt    *time.Time  `json:"polar_last_synced_at,omitempty" db:"polar_last_synced_at"`
-	PolarCustomerID      *uuid.UUID  `json:"polar_customer_id,omitempty" db:"polar_customer_id"`
-	PolarSubscriptionIDs []uuid.UUID `json:"polar_subscription_ids,omitempty" db:"polar_subscription_ids"`
-
 	// Timestamps
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// PlanType mirrors the auth.plan_type enum.
+type PlanType string
+
+const (
+	PlanFree    PlanType = "free"
+	PlanPro     PlanType = "pro"
+	PlanPastDue PlanType = "past_due"
+)
+
+// PlanInterval mirrors the auth.plan_interval enum.
+type PlanInterval string
+
+const (
+	IntervalMonthly PlanInterval = "monthly"
+	IntervalYearly  PlanInterval = "yearly"
+)
+
+// Subscription maps the auth.user_subscriptions table (Stripe-backed).
+type Subscription struct {
+	UserID               uuid.UUID     `json:"user_id" db:"user_id"`
+	StripeCustomerID     string        `json:"stripe_customer_id" db:"stripe_customer_id"`
+	StripeSubscriptionID *string       `json:"stripe_subscription_id,omitempty" db:"stripe_subscription_id"`
+	Plan                 PlanType      `json:"plan" db:"plan"`
+	PlanInterval         *PlanInterval `json:"plan_interval,omitempty" db:"plan_interval"`
+	ProUntil             *time.Time    `json:"pro_until,omitempty" db:"pro_until"`
+	CancelAtPeriodEnd    bool          `json:"cancel_at_period_end" db:"cancel_at_period_end"`
+	CreatedAt            time.Time     `json:"created_at" db:"created_at"`
+	UpdatedAt            time.Time     `json:"updated_at" db:"updated_at"`
+}
+
+// IsPro reports whether the subscription currently grants active pro access.
+func (s *Subscription) IsPro() bool {
+	if s.Plan != PlanPro {
+		return false
+	}
+	if s.ProUntil != nil && time.Now().After(*s.ProUntil) {
+		return false
+	}
+	return true
 }
 
 type Stats struct {
